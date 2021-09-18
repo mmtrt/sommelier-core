@@ -67,7 +67,6 @@ init_wine() {
       mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
   fi
 
-
   if [[ -n "${MONO_URL:-}" ]]; then
     if [[ $(grep -c mscoree "$WINEPREFIX"/user.reg) -eq 0 ]]; then
         # If we've been given an installer URL derive the filename
