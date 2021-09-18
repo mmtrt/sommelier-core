@@ -140,7 +140,7 @@ install_app() {
     . "$SNAP/sommelier/hooks/pre-install"
   fi
 
-  ORIGINAL_LINKS=( $(xdg-user-dir DESKTOP)/*.lnk )
+  ORIGINAL_LINKS=( "$(xdg-user-dir DESKTOP)"/*.lnk )
 
   # Download installer if requested.
   if [[ -n "${INSTALL_URL:-}" ]]; then
@@ -183,7 +183,7 @@ install_app() {
 
   # Remove any Windows shortcuts the installer created since these don't work
   # in Linux and some users get confused by them.
-  for CURRENT_LINK in $(xdg-user-dir DESKTOP)/*.lnk; do
+  for CURRENT_LINK in "$(xdg-user-dir DESKTOP)"/*.lnk; do
     element_in "$CURRENT_LINK" "${ORIGINAL_LINKS[@]}" || rm "$CURRENT_LINK"
   done
 
