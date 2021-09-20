@@ -208,11 +208,6 @@ start_app() {
     APP_ARGS=( "${ACTION_ARGS[@]}" )
   fi
 
-  if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
-    echo "DEBUG: Sommelier elapsed time: $(date +%s.%N --date="$START seconds ago")"
-    echo "DEBUG: Now running: '${WINELOADER}' '${RUN_EXE}' '${APP_ARGS[@]}'"
-  fi
-
   # Because Windows software will often look for program files in the location
   # they were started from we need to start it in a very specific way: change
   # directory to the folder where the program is located and run the .exe file
@@ -223,6 +218,11 @@ start_app() {
     cd "${app_dir}"
   else
     app="${RUN_EXE}"
+  fi
+
+  if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
+    echo "DEBUG: Sommelier elapsed time: $(date +%s.%N --date="$START seconds ago")"
+    echo "DEBUG: Now running: '${WINELOADER}' '${RUN_EXE}' '${APP_ARGS[@]}'"
   fi
 
   # Note 1: We use `wine` because `wine start \wait \unix` has problems with
