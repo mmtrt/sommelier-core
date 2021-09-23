@@ -67,8 +67,36 @@ init_wine() {
       mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
   fi
 
-  if [[ -n "${MONO_URL:-}" ]]; then
-    if [[ $(grep -c mscoree "$WINEPREFIX"/user.reg) -eq 0 ]]; then
+  if [[ -n "${SOMMELIER_INSTALL_MONO:-}" ]]; then
+    if [[ $(grep -c mscoree "$WINEPREFIX"/user.reg 2&>/dev/null) -eq 0 ]]; then
+        WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 | grep "wine-[\.0-9]" | cut -d "-" -f 2)
+        # For future reference MONO_VER https://source.winehq.org/source/dlls/appwiz.cpl/addons.c
+          case "$WINE_VER" in
+            3.0.4)
+              MONO_VER="4.7.1"
+              ;;
+
+            4.0.3)
+              MONO_VER="4.7.5"
+              ;;
+
+            4.21|5.0.3)
+              MONO_VER="4.9.4"
+              ;;&
+
+            5.18)
+              MONO_VER="5.1.0"
+              ;;
+
+            5.22|6.0.1)
+              MONO_VER="5.1.1"
+              ;;&
+
+            6.14|6.15|6.16|6.17)
+              MONO_VER="6.3.0"
+              ;;
+          esac
+        MONO_URL="https://dl.winehq.org/wine/wine-mono/${MONO_VER}/wine-mono-${MONO_VER}.msi"
         # If we've been given an installer URL derive the filename
         MONO_MSI="$(basename "${MONO_URL//\?*/}")"
         # Create wine cache dir
