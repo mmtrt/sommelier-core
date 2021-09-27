@@ -252,7 +252,7 @@ start_app() {
   if [[ -z "${SOMMELIER_KEEP_CWD:-}" ]]; then
     app_dir=$(dirname "${RUN_EXE}")
     app=$(basename "${RUN_EXE}")
-    cd "${app_dir}" 2>/dev/null
+    cd "${app_dir}"
   else
     app="${RUN_EXE}"
   fi
