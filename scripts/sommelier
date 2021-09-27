@@ -464,6 +464,13 @@ if [[ "$ACTION" = "winetricks" ]]; then
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "run-exe" ]]; then
+  # assign exe to RUN_EXE if multi
+  if [[ -e "$RUN_EXE" ]]; then
+    RUN_EXE="$RUN_EXE"
+  else
+    RUN_EXE="$RUN_EXE_2"
+  fi
+
   # Check if we know which executable to run.
   # Note: RUN_EXE is provided as an environment variable instead of a CLI
   # parameter so that snaps using command-chain can specify an executable
