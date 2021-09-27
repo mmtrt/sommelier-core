@@ -68,7 +68,7 @@ init_wine() {
   fi
 
   if [[ -n "${SOMMELIER_INSTALL_MONO:-}" ]]; then
-    if [[ $(grep -c -e mscor -e mono "$WINEPREFIX"/user.reg 2&>/dev/null) -eq 0 ]]; then
+    if [[ $(grep -c -s -e mscor -e mono "$WINEPREFIX"/user.reg) -eq 0 ]]; then
       WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 | grep "wine-[\.0-9]" | cut -d "-" -f 2)
       # For future reference MONO_VER https://source.winehq.org/source/dlls/appwiz.cpl/addons.c
       case "$WINE_VER" in
