@@ -241,7 +241,9 @@ start_app() {
   ACTION_ARGS=( "${args[@]}" )
 
   # assign exe to RUN_EXE if multi
-  if [[ -e "$RUN_EXE_2" ]]; then
+  if [[ -e "$RUN_EXE" ]]; then
+    RUN_EXE="$RUN_EXE"
+  elif [[ -e "$RUN_EXE_2" ]]; then
     RUN_EXE="$RUN_EXE_2"
   fi
 
