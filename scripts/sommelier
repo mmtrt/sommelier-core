@@ -240,6 +240,13 @@ start_app() {
   done
   ACTION_ARGS=( "${args[@]}" )
 
+  # assign exe to RUN_EXE if multi
+  if [[ -e "$RUN_EXE" ]]; then
+    RUN_EXE="$RUN_EXE"
+  elif [[ -e "$RUN_EXE_2" ]]; then
+    RUN_EXE="$RUN_EXE_2"
+  fi
+
   if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
     echo "DEBUG: Sommelier elapsed time: $(date +%s.%N --date="$START seconds ago")"
     echo "DEBUG: Now running: '${WINELOADER}' '${RUN_EXE}' '${ACTION_ARGS[@]}'"
@@ -464,13 +471,6 @@ if [[ "$ACTION" = "winetricks" ]]; then
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "run-exe" ]]; then
-  # assign exe to RUN_EXE if multi
-  if [[ -e "$RUN_EXE" ]]; then
-    RUN_EXE="$RUN_EXE"
-  elif [[ -e "$RUN_EXE_2" ]]; then
-    RUN_EXE="$RUN_EXE_2"
-  fi
-
   # Check if we know which executable to run.
   # Note: RUN_EXE is provided as an environment variable instead of a CLI
   # parameter so that snaps using command-chain can specify an executable
