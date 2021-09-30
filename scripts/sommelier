@@ -59,6 +59,13 @@ element_in() {
 # Sommelier functions #
 #######################
 
+check_exe() {
+# assign exe to RUN_EXE if multi
+if [[ -e "$RUN_EXE_2" ]]; then
+  RUN_EXE="$RUN_EXE_2"
+fi
+}
+
 init_wine() {
   echo "Initialising Wine.."
 
@@ -230,6 +237,8 @@ start_app() {
     . "$SNAP/sommelier/hooks/pre-start"
   fi
 
+  check_exe
+
   # Convert all arguments which point to existing files/dirs to Windows paths.
   for i in "${ACTION_ARGS[@]}"; do
     if [[ -e "${i}" ]]; then
@@ -239,13 +248,6 @@ start_app() {
     fi
   done
   ACTION_ARGS=( "${args[@]}" )
-
-  # assign exe to RUN_EXE if multi
-  if [[ -e "$RUN_EXE" ]]; then
-    RUN_EXE="$RUN_EXE"
-  elif [[ -e "$RUN_EXE_2" ]]; then
-    RUN_EXE="$RUN_EXE_2"
-  fi
 
   if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
     echo "DEBUG: Sommelier elapsed time: $(date +%s.%N --date="$START seconds ago")"
@@ -454,6 +456,8 @@ fi
 #####################################
 # Actually run the requested action #
 #####################################
+
+check_exe
 
 # Get the action we're asked to run
 if [[ -n "${1:-}" ]]; then
