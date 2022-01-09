@@ -111,7 +111,7 @@ init_wine() {
         MONO_VER="7.0.0-x86"
         ;;
       esac
-      MONO_URL="https://dl.winehq.org/wine/wine-mono/${MONO_VER}/wine-mono-${MONO_VER}.msi"
+      MONO_URL="https://dl.winehq.org/wine/wine-mono/$(cut -d'-' -f1 <<< ${MONO_VER})/wine-mono-${MONO_VER}.msi"
       # If we've been given an installer URL derive the filename
       MONO_MSI="$(basename "${MONO_URL//\?*/}")"
       # Create wine cache dir
