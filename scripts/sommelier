@@ -96,8 +96,12 @@ init_wine() {
         MONO_VER="6.3.0-x86"
         ;;
 
-      6.18)
+      6.18|6.19|6.20|6.21)
         MONO_VER="6.4.0-x86"
+        ;;
+
+      6.22|6.23)
+        MONO_VER="7.0.0-x86"
         ;;
       esac
       MONO_URL="https://dl.winehq.org/wine/wine-mono/${MONO_VER}/wine-mono-${MONO_VER}.msi"
