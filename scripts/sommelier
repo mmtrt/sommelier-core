@@ -303,7 +303,7 @@ fi
 WINE_RELEASE="$(
   grep \
     --extended-regexp \
-    'default-provider: *wine-platform-[[:digit:]]' \
+    'default-provider: *wine-platform-[[:digit:]]-core20' \
     $SNAP/meta/snap.yaml \
     | cut --delimiter=: --fields=2 \
     | sed 's/^ *//;s|-| |g' \
@@ -315,7 +315,7 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
   platform_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-[[:digit:]]' \
+      'default-provider: *wine-platform-[[:digit:]]-core20' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
@@ -366,7 +366,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
   runtime_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-runtime' \
+      'default-provider: *wine-platform-runtime-core20' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
