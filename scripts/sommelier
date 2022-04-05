@@ -126,14 +126,6 @@ init_wine() {
   ensure_dir_exists "$WINEPREFIX/drive_c/windows/Fonts"
   find /usr/share/fonts/ -type f \( -name "*.ttf" -o -name "*.ttc" \) -exec ln -vs "{}" "$WINEPREFIX/drive_c/windows/Fonts/" \; &>/dev/null
 
-  if [[ -z "${SOMMELIER_NO_THEME:-}" ]]; then
-    # Install Zhiyi's light theme and set as default
-    ensure_dir_exists "$WINEPREFIX/drive_c/windows/Resources/Themes/light"
-    cp -r "$SNAP/sommelier/themes/"* "$WINEPREFIX/drive_c/windows/Resources/Themes"
-    "$WINELOADER" regedit "$SNAP/sommelier/themes/light/light.reg"
-    sleep 1
-  fi
-
   # Better support for Chinese fonts.
   if (locale | grep 'LANG=ja_JP') >/dev/null 2>&1; then
     "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-jp.reg"
