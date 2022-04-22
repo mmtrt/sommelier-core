@@ -72,33 +72,33 @@ init_wine() {
       WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 | grep "wine-[\.0-9]" | cut -d "-" -f 2)
       MONO_VER=$(wget "https://source.winehq.org/source/dlls/appwiz.cpl/addons.c?%21v=wine-${WINE_VER}" -qO- | grep -Po 'MONO_VERSION</a>.*[0-9]"' | cut -d'"' -f4)
       if [[ $(ls "$SNAP"/wine-platform* | grep -c stable) -eq 1 ]]; then
-        # For future reference see MONO_VER https://github.com/wine-mirror/wine/tree/stable of winestable
-        case "$WINE_VER" in
-        3.0.4)
-          MONO_VER="4.7.1"
-          ;;
+      # For future reference see MONO_VER https://github.com/wine-mirror/wine/tree/stable of wine-stable
+      case "$WINE_VER" in
+      3.0.4)
+        MONO_VER="4.7.1"
+        ;;
 
-        4.0.3)
-          MONO_VER="4.7.5"
-          ;;
+      4.0.3)
+        MONO_VER="4.7.5"
+        ;;
 
-        5.0.3)
-          MONO_VER="4.9.4"
-          ;;
+      5.0.3)
+        MONO_VER="4.9.4"
+        ;;
 
-        6.0.1|6.0.2)
-          MONO_VER="5.1.1-x86"
-          ;;
+      6.0.1|6.0.2|6.0.3|6.0.4)
+        MONO_VER="5.1.1-x86"
+        ;;
 
-        7.0|7.0.0|7.0.0.0)
-          MONO_VER="7.0.0-x86"
-          ;;
-        esac
-      else
-        if [[ ! $(echo "$WINE_VER<5.18"|bc) -gt 0 ]]; then
-          MONO_VER="$MONO_VER-x86"
-        fi
+      7.0|7.0.0|7.0.0.0)
+        MONO_VER="7.0.0-x86"
+        ;;
+      esac
+    else
+      if [[ ! $(echo "$WINE_VER<5.18"|bc) -gt 0 ]]; then
+        MONO_VER="$MONO_VER-x86"
       fi
+    fi
       MONO_URL="https://dl.winehq.org/wine/wine-mono/$(cut -d'-' -f1 <<< ${MONO_VER})/wine-mono-${MONO_VER}.msi"
       # If we've been given an installer URL derive the filename
       MONO_MSI="$(basename "${MONO_URL//\?*/}")"
