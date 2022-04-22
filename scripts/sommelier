@@ -62,7 +62,7 @@ element_in() {
 init_wine() {
   echo "Initialising Wine.."
 
-  if [[ -d "$SNAP/winedata" ]]; then
+  if [[ -d "$SNAP/winedata/wine" ]]; then
     cp -urs "$SNAP/winedata/wine" "${XDG_CACHE_HOME}"
     cp -urs "$SNAP/winedata/winetricks" "${XDG_CACHE_HOME}"
   fi
