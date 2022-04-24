@@ -127,6 +127,12 @@ init_wine() {
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
+  if [[ -L "${WINEPREFIX}/drive_c/users/$USER/Downloads" && -d "${WINEPREFIX}/drive_c/users/$USER/Downloads" ]]; then
+    find "${WINEPREFIX}/drive_c/users/$USER" -type l -name Downloads | xargs rm 2>/dev/null
+    source "$XDG_CONFIG_HOME/user-dirs.dirs"
+    ln -s "$XDG_DOWNLOAD_DIR" "${WINEPREFIX}/drive_c/users/$USER/"
+  fi
+
   # link ttf & ttc fonts from root to wineprefix
   ensure_dir_exists "$WINEPREFIX/drive_c/windows/Fonts"
   find /usr/share/fonts/ -type f \( -name "*.ttf" -o -name "*.ttc" \) -exec ln -vs "{}" "$WINEPREFIX/drive_c/windows/Fonts/" \; &>/dev/null
