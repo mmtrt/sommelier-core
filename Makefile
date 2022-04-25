@@ -31,12 +31,12 @@ install:
 
 	# Install wine-launch script
 	install -D -m755 scripts/wine-launch "$(DESTDIR)"/snap/command-chain/wine-launch
-	ls -al "$(SNAPCRAFT_STAGE)"/"$(SNAPCRAFT_PROJECT_NAME)"  2> /dev/null
-	ls -al " $(SNAPCRAFT_STAGE)"  2> /dev/null
-	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta  2> /dev/null
-	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"  2> /dev/null
-	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"/meta  2> /dev/null
-	grep -Po '  - snap/command-chain/.*' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml | sed -i '/desktop-launch/a\   \ - snap/command-chain/wine-launch' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml
+# 	ls -al "$(SNAPCRAFT_STAGE)"/"$(SNAPCRAFT_PROJECT_NAME)"  2> /dev/null
+# 	ls -al "$(SNAPCRAFT_STAGE)"  2> /dev/null
+# 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta  2> /dev/null
+# 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"  2> /dev/null
+# 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"/meta  2> /dev/null
+# 	grep -Po '  - snap/command-chain/.*' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml | sed -i '/desktop-launch/a\   \ - snap/command-chain/wine-launch' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml
 
 	# cjk languages config
 	install -D -m644 config/noto-sans-cjk-jp.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-jp.reg
