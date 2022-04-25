@@ -31,6 +31,11 @@ install:
 
 	# Install wine-launch script
 	install -D -m755 scripts/wine-launch "$(DESTDIR)"/snap/command-chain/wine-launch
+	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"
+	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta
+	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"
+	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"/meta
+	grep -Po '  - snap/command-chain/.*' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml | sed -i '/desktop-launch/a\   \ - snap/command-chain/wine-launch' "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta/snap.yaml
 
 	# cjk languages config
 	install -D -m644 config/noto-sans-cjk-jp.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-jp.reg
