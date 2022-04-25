@@ -29,6 +29,9 @@ install:
 	install -d "$(DESTDIR)"/wine-runtime
 	install -d "$(DESTDIR)"/wine-platform
 
+	# Install wine-launch script
+	install -D -m755 scripts/wine-launch "$(DESTDIR)"/snap/command-chain/wine-launch
+
 	# cjk languages config
 	install -D -m644 config/noto-sans-cjk-jp.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-jp.reg
 	install -D -m644 config/noto-sans-cjk-kr.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-kr.reg
