@@ -32,7 +32,7 @@ install:
 	# Install wine-launch script
 	install -D -m755 scripts/wine-launch "$(DESTDIR)"/snap/command-chain/wine-launch
 	ls -al "$(SNAPCRAFT_STAGE)"/"$(SNAPCRAFT_PROJECT_NAME)"  2> /dev/null
-        ls -al " $(SNAPCRAFT_STAGE)"  2> /dev/null
+	ls -al " $(SNAPCRAFT_STAGE)"  2> /dev/null
 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PROJECT_NAME)"/meta  2> /dev/null
 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"  2> /dev/null
 	ls -al "$(DESTDIR)"/"$(SNAPCRAFT_PRIME)"/meta  2> /dev/null
