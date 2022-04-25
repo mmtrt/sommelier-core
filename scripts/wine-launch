@@ -1,0 +1,179 @@
+#!/bin/bash
+
+#####################
+# Utility Functions #
+#####################
+
+# Note: We avoid using `eval` because we don't want to expand variable names
+#       in paths. For example: LD_LIBRARY_PATH paths might contain `$LIB`.
+prepend_dir() {
+  local -n var="$1"
+  local dir="$2"
+  # We can't check if the dir exists when the dir contains variables
+  if [[ "$dir" == *"\$"*  || -d "$dir" ]]; then
+    export "${!var}=${dir}${var:+:$var}"
+  fi
+}
+
+append_dir() {
+  local -n var="$1"
+  local dir="$2"
+  # We can't check if the dir exists when the dir contains variables
+  if [[ "$dir" == *"\$"*  || -d "$dir" ]]; then
+    export "${!var}=${var:+$var:}${dir}"
+  fi
+}
+
+if [[ -z "${WINEDEBUG:-}" ]]; then
+  export WINEDEBUG="-all"
+fi
+
+
+###########################
+# Wine platform selection #
+###########################
+
+WINE_RELEASE="$(
+  grep \
+    --extended-regexp \
+    'default-provider: *wine-platform-[[:digit:]]' \
+    $SNAP/meta/snap.yaml \
+    | cut --delimiter=: --fields=2 \
+    | sed 's/^ *//;s|-| |g' \
+    | awk '{print $4}'
+)"
+export WINE_PLATFORM="$SNAP/wine-platform/wine-$WINE_RELEASE"
+
+if [[ ! -d "$WINE_PLATFORM" ]]; then
+  platform_snap_name="$(
+    grep \
+      --extended-regexp \
+      'default-provider: *wine-platform-[[:digit:]]' \
+      $SNAP/meta/snap.yaml \
+      | cut --delimiter=: --fields=2 \
+      | sed 's/^ *//' \
+      || true
+  )"
+
+  if test -n "${platform_snap_name:-}"; then
+    echo "ERROR: You need to connect this snap to the wine platform snap."
+    echo ""
+    echo "You can do this with those commands:"
+    echo "snap install ${platform_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||g') ${platform_snap_name}"
+    echo ""
+    exit 1
+  else
+    echo "ERROR: This snap is broken. Please contact the publisher."
+    echo ""
+    echo "The snap has no plugs to the wine platform snap."
+    echo "Please add the plugs to the wine platform"
+    echo ""
+    exit 1
+  fi
+fi
+
+append_dir PATH "$WINE_PLATFORM/bin"
+
+# Note: Technically, we should be able to just use the `wine` command and get
+#       Wine location from PATH, but it doesn't hurt to use the absolute path.
+# Note: The `wine` command runs 64-bit Wine by default, unless specified
+#       otherwise by WINEARCH
+# Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
+#       its own.
+export WINELOADER="$WINE_PLATFORM/bin/wine"
+
+append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
+append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
+
+
+###########################
+# Wine runtime selection #
+###########################
+
+export WINE_PLATFORM_RUNTIME="$SNAP/wine-runtime"
+if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
+  runtime_snap_name="$(
+    grep \
+      --extended-regexp \
+      'default-provider: *wine-platform-runtime' \
+      $SNAP/meta/snap.yaml \
+      | cut --delimiter=: --fields=2 \
+      | sed 's/^ *//' \
+      || true
+  )"
+
+  if test -n "${runtime_snap_name:-}"; then
+    echo "ERROR: You need to connect this snap to the wine runtime snap."
+    echo ""
+    echo "You can do this with those commands:"
+    echo "snap install ${runtime_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||g') ${runtime_snap_name}"
+    echo ""
+    exit 1
+  else
+    echo "ERROR: This snap is broken. Please contact the publisher."
+    echo ""
+    echo "The snap has no plugs to the wine runtime"
+    echo "Please add the plugs to the wine runtime"
+    echo ""
+    exit 1
+  fi
+fi
+
+append_dir PATH "$WINE_PLATFORM_RUNTIME/bin"
+append_dir PATH "$WINE_PLATFORM_RUNTIME/usr/bin"
+
+# Note: LD_PRELOAD and LD_LIBRARY_PATH accept the variable `$LIB` as part of a
+#       path. The linker will expand this to `lib/<arch>-linux-gnu` on debian-
+#       based systems where <arch> is the architecture of the binary it is
+#       linking. This is why we make sure to expand
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/lib"
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/\$LIB"
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/lib"
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB"
+
+# Use Wine-platform libraries for GPU access because they also contain 32-bit
+# drivers. The Gnome platform snaps currently only provide 64-bit libraries.
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
+prepend_dir LIBGL_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
+prepend_dir LIBVA_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
+
+# Use wine-platform libs for 32-bit audio support.
+prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/pulseaudio"
+
+# SAMBA Libs for ntlm_auth to function
+append_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/samba"
+
+append_dir LD_LIBRARY_PATH "$SNAP/lib"
+append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
+append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
+append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
+
+export WINETRICKS="$WINE_PLATFORM_RUNTIME/bin/winetricks"
+export WINETRICKS_LATEST_VERSION_CHECK="disabled"
+
+export WINEPREFIX="$SNAP_USER_COMMON/.wine"
+
+export DXVK_CONFIG_FILE="$SNAP_USER_COMMON/dxvk.conf"
+if [[ -z "${DXVK_LOG_LEVEL:-}" ]]; then
+  export DXVK_LOG_LEVEL="none"
+fi
+
+# Don't Stop wine from updating $WINEPREFIX automatically
+if [[ -f "${WINEPREFIX}/.update-timestamp" ]]; then
+  chkstmp="$(grep -c disable "${WINEPREFIX}/.update-timestamp")"
+  if [[ "$chkstmp" -eq 1 ]]; then
+    rm "${WINEPREFIX}/.update-timestamp"
+  fi
+fi
+
+# Disable the WineMenuBuilder. It creates Desktop shortcuts and configures
+# file associations for the applications you install in wine. This does not
+# work in a snap, however, since those are handled by snapd instead. The only
+# thing it does is pollute ~/Desktop with broken `.desktop` files.
+if [[ $(grep -c winemenubulder "$WINE_PLATFORM"/share/wine/wine.inf 2&>/dev/null) -ge 1 ]]; then
+  export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-};winemenubuilder.exe=d"
+fi
+
+exec "$@"
