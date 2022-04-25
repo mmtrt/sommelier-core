@@ -86,7 +86,7 @@ init_wine() {
 
   if [[ -n "${SOMMELIER_INSTALL_MONO:-}" ]]; then
     if [[ $(grep -c -s -e mscor -e mono "$WINEPREFIX"/user.reg) -eq 0 ]]; then
-      WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 | grep "wine-[\.0-9]" | cut -d "-" -f 2)
+      WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 "$WINE_PLATFORM"/lib/wine/ntdll.so "$WINE_PLATFORM"/lib/wine/i386-unix/ntdll.so 2>/dev/null | grep "wine-[\.0-9]" | cut -d "-" -f 2)
       MONO_VER=$(wget "https://source.winehq.org/source/dlls/appwiz.cpl/addons.c?%21v=wine-${WINE_VER}" -qO- | grep -Po 'MONO_VERSION</a>.*[0-9]"' | cut -d'"' -f4)
       if [[ $(ls "$SNAP"/wine-platform* | grep -c stable) -eq 1 ]]; then
       # For future reference see MONO_VER https://github.com/wine-mirror/wine/tree/stable of wine-stable
