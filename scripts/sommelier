@@ -478,6 +478,12 @@ if [[ "$ACTION" = "winetricks" ]]; then
   "$WINETRICKS" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
+elif [[ "$ACTION" = "wef" ]]; then
+  ( cd $(dirname $ACTION_ARGS); for i in "${ACTION_ARGS[@]}"; do \
+  "$WINELOADER" "$RUN_EXE" x "$(basename $i)" "./$(basename $i | cut -d. -f1)/"; done )
+elif [[ "$ACTION" = "weh" ]]; then
+  ( cd $(dirname $ACTION_ARGS); for i in "${ACTION_ARGS[@]}"; do \
+  "$WINELOADER" "$RUN_EXE" x "$(basename $i)"; done )
 elif [[ "$ACTION" = "run-exe" ]]; then
   # Check if we know which executable to run.
   # Note: RUN_EXE is provided as an environment variable instead of a CLI
