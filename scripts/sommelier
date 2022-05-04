@@ -489,6 +489,15 @@ elif [[ "$ACTION" = "wefs" ]]; then
 elif [[ "$ACTION" = "weh" ]]; then
   ( for i in "${ACTION_ARGS[@]}"; do \
   "$WINELOADER" "$RUN_EXE" x "$(basename "$i")"; done )
+elif [[ "$ACTION" = "wta" ]]; then
+  ( for i in "${ACTION_ARGS[@]}"; do \
+  "$WINELOADER" "$RUN_EXE" t -iext -- "$(basename "$i")"; done )
+elif [[ "$ACTION" = "wra" ]]; then
+  ( for i in "${ACTION_ARGS[@]}"; do \
+  "$WINELOADER" "$RUN_EXE" r "$(basename "$i")"; done )
+elif [[ "$ACTION" = "wqc" ]]; then
+  ( for i in "${ACTION_ARGS[@]}"; do \
+  "$WINELOADER" "$RUN_EXE" a "$(basename "$i").rar" ; done )
 elif [[ "$ACTION" = "run-exe" ]]; then
   # Check if we know which executable to run.
   # Note: RUN_EXE is provided as an environment variable instead of a CLI
