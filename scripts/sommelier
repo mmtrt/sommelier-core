@@ -497,7 +497,7 @@ elif [[ "$ACTION" = "wra" ]]; then
   "$WINELOADER" "$RUN_EXE" r "$(basename "$i")"; done )
 elif [[ "$ACTION" = "wqc" ]]; then
   ( for i in "${ACTION_ARGS[@]}"; do \
-  "$WINELOADER" "$RUN_EXE" a "$(basename "$i").rar" ; done )
+  "$WINELOADER" "$RUN_EXE" a "$(basename "$ACTION_ARGS"| cut -d. -f1).rar" "$(basename "$i")"; done )
 elif [[ "$ACTION" = "run-exe" ]]; then
   # Check if we know which executable to run.
   # Note: RUN_EXE is provided as an environment variable instead of a CLI
