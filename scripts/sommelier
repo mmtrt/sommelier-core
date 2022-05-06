@@ -458,6 +458,21 @@ if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini"  || "$(cat "$SNAP_USER_COM
   init_wine
 fi
 
+CHK_PLASMA="$(env | grep -c -s DESKTOP_SESSION=plasma)"
+
+if [ "$CHK_PLASMA" -eq 1 ]; then
+# Set $REALHOME to the users real home directory
+REALHOME=$(getent passwd $UID | cut -d ':' -f 6)
+
+# Set servicemenus dir path in user HOME for KDE5
+SVC_MEN_KDE5="$REALHOME/.local/share/kservices5/ServiceMenus"
+
+# Install winrar servicemenu files for kde5
+if [ ! -f "$SVC_MEN_KDE5/winrar_compress_kde5.desktop" ] || [ ! -f "$SVC_MEN_KDE5/winrar_extract_kde5.desktop" ]; then
+ mkdir -p "$SVC_MEN_KDE5"
+ cp -r "$SNAP/winedata/"*.desktop "$SVC_MEN_KDE5/"
+fi
+fi
 
 #####################################
 # Actually run the requested action #
