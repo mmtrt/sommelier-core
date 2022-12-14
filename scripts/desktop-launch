@@ -39,7 +39,7 @@ fi
 REALHOME=$(getent passwd $UID | cut -d ':' -f 6)
 
 export SNAP_DESKTOP_RUNTIME=$SNAP
-export WINE_DESKOP_RUNTIME=$SNAP/wine-platform
+export WINE_DESKOP_RUNTIME=$SNAP/wine-runtime
 
 # Set config folder to local path
 export XDG_CONFIG_HOME="$SNAP_USER_COMMON/.config"
