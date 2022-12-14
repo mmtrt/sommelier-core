@@ -29,6 +29,7 @@ install:
 	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/desktop-launch
 
 	# Empty directories for mounting content snaps
+	install -d "$(DESTDIR)"/graphics
 	install -d "$(DESTDIR)"/wine-runtime
 	install -d "$(DESTDIR)"/wine-platform
 
