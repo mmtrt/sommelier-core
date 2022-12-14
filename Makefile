@@ -26,7 +26,7 @@ install:
 	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/sommelier
 
 	# The desktop-launch script itself
-	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/desktop-launch
+	install -D -m755 scripts/desktop-launch "$(DESTDIR)"/bin/desktop-launch
 
 	# Empty directories for mounting content snaps
 	install -d "$(DESTDIR)"/graphics
