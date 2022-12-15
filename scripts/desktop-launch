@@ -143,6 +143,7 @@ function is_subpath() {
 }
 
 append_dir PATH "$SNAP_DESKTOP_RUNTIME/usr/bin"
+append_dir PATH "$WINE_DESKOP_RUNTIME/usr/bin"
 
 # XKB config
 export XKB_CONFIG_ROOT="$WINE_DESKOP_RUNTIME/usr/share/X11/xkb"
@@ -189,7 +190,7 @@ if [ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]; then
 fi
 
 # Export Vulkan ICD filename paths
-export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$SNAP/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:$SNAP/usr/share/vulkan/icd.d/intel_icd.x86_64.json"
+export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$WINE_DESKOP_RUNTIME/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:$WINE_DESKOP_RUNTIME/usr/share/vulkan/icd.d/intel_icd.x86_64.json"
 
 # Workaround in snapd for proprietary nVidia drivers mounts the drivers in
 # /var/lib/snapd/lib/gl that needs to be in LD_LIBRARY_PATH
@@ -209,7 +210,7 @@ prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
 append_dir __EGL_VENDOR_LIBRARY_DIRS "$WINE_DESKOP_RUNTIME/usr/share/glvnd/egl_vendor.d"
 
 # Tell GStreamer where to find its plugins
-export GST_PLUGIN_PATH="$SNAP/usr/lib/$ARCH/gstreamer-1.0"
+export GST_PLUGIN_PATH="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
 export GST_PLUGIN_SYSTEM_PATH="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
 # gst plugin scanner doesn't install in the correct path: https://github.com/ubuntu/snapcraft-desktop-helpers/issues/43
 export GST_PLUGIN_SCANNER="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
