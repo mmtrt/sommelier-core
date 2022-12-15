@@ -411,12 +411,6 @@ prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBGL_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBVA_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 
-# Use wine-platform libs for 32-bit audio support.
-prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/pulseaudio"
-
-# SAMBA Libs for ntlm_auth to function
-append_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/samba"
-
 export WINETRICKS="$WINE_PLATFORM_RUNTIME/bin/winetricks"
 export WINETRICKS_LATEST_VERSION_CHECK="disabled"
 
