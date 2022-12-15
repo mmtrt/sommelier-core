@@ -89,32 +89,31 @@ init_wine() {
       WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 "$WINE_PLATFORM"/lib/wine/ntdll.so "$WINE_PLATFORM"/lib/wine/i386-unix/ntdll.so 2>/dev/null | grep "wine-[\.0-9]" | cut -d "-" -f 2)
       MONO_VER=$(wget "https://source.winehq.org/source/dlls/appwiz.cpl/addons.c?%21v=wine-${WINE_VER}" -qO- | grep -Po 'MONO_VERSION</a>.*[0-9]"' | cut -d'"' -f4)
       if [[ $(ls "$SNAP"/wine-platform* | grep -c stable) -eq 1 ]]; then
-      # For future reference see MONO_VER https://github.com/wine-mirror/wine/tree/stable of wine-stable
+      # For future reference setting of MONO_VER see https://github.com/wine-mirror/wine/tree/stable of wine-stable
       case "$WINE_VER" in
-      3.0.4)
+      3.0.1|3.0.2|3.0.3|3.0.4|3.0.5)
         MONO_VER="4.7.1"
         ;;
 
-      4.0.3)
+      4.0.1|4.0.2|4.0.3|4.0.4)
         MONO_VER="4.7.5"
         ;;
 
-      5.0.3)
+      5.0.1|5.0.2|5.0.3|5.0.4|5.0.5)
         MONO_VER="4.9.4"
         ;;
 
       6.0.1|6.0.2|6.0.3|6.0.4)
-        MONO_VER="5.1.1-x86"
+        MONO_VER="5.1.1"
         ;;
 
-      7.0|7.0.0|7.0.0.0)
+      7.0.1|7.0.2|7.0.3|7.0.4)
         MONO_VER="7.0.0-x86"
         ;;
-      esac
-    else
-      if [[ ! $(echo "$WINE_VER<5.18"|bc) -gt 0 ]]; then
+      *)
         MONO_VER="$MONO_VER-x86"
-      fi
+        ;;
+      esac
     fi
       MONO_URL="https://dl.winehq.org/wine/wine-mono/$(cut -d'-' -f1 <<< ${MONO_VER})/wine-mono-${MONO_VER}.msi"
       # If we've been given an installer URL derive the filename
@@ -139,17 +138,15 @@ init_wine() {
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
+  if [[ -L "${WINEPREFIX}/drive_c/users/$USER/Downloads" && -d "${WINEPREFIX}/drive_c/users/$USER/Downloads" ]]; then
+    find "${WINEPREFIX}/drive_c/users/$USER" -type l -name Downloads | xargs rm 2>/dev/null
+    source "$XDG_CONFIG_HOME/user-dirs.dirs"
+    ln -s "$XDG_DOWNLOAD_DIR" "${WINEPREFIX}/drive_c/users/$USER/"
+  fi
+
   # link ttf & ttc fonts from root to wineprefix
   ensure_dir_exists "$WINEPREFIX/drive_c/windows/Fonts"
   find /usr/share/fonts/ -type f \( -name "*.ttf" -o -name "*.ttc" \) -exec ln -vs "{}" "$WINEPREFIX/drive_c/windows/Fonts/" \; &>/dev/null
-
-  if [[ -z "${SOMMELIER_NO_THEME:-}" ]]; then
-    # Install Zhiyi's light theme and set as default
-    ensure_dir_exists "$WINEPREFIX/drive_c/windows/Resources/Themes/light"
-    cp -r "$SNAP/sommelier/themes/"* "$WINEPREFIX/drive_c/windows/Resources/Themes"
-    "$WINELOADER" regedit "$SNAP/sommelier/themes/light/light.reg"
-    sleep 1
-  fi
 
   # Better support for Chinese fonts.
   if (locale | grep 'LANG=ja_JP') >/dev/null 2>&1; then
@@ -341,7 +338,7 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${platform_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||g') ${platform_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||;s|-core22||') ${platform_snap_name}"
     echo ""
     exit 1
   else
@@ -353,6 +350,9 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
     exit 1
   fi
 fi
+
+# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 1 of 2)
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH#$SNAP_LIBRARY_PATH:}"
 
 append_dir PATH "$WINE_PLATFORM/bin"
 
@@ -377,7 +377,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
   runtime_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-runtime' \
+      'default-provider: *wine-platform-runtime-core22' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
@@ -389,7 +389,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${runtime_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||g') ${runtime_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||;s|ore||') ${runtime_snap_name}"
     echo ""
     exit 1
   else
@@ -460,6 +460,10 @@ fi
 if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini"  || "$(cat "$SNAP_USER_COMMON/.last_snap_revision" 2>/dev/null)" != "$SNAP_REVISION" ]]; then
   init_wine
 fi
+
+
+# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 2 of 2)
+append_dir LD_LIBRARY_PATH "${SNAP_LIBRARY_PATH}"
 
 
 #####################################

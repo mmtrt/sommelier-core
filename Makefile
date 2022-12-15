@@ -12,10 +12,10 @@ build:
 	#
 	# The Gnome extensions only compile the library for 64-bit arch. 
 ifeq ($(HW_PLATFORM), x86_64)
-	sudo apt-get -y install libc6-dev-i386
-	sudo apt-get -y install gcc-multilib
+	apt-get -y install libc6-dev-i386
+	apt-get -y install gcc-multilib
 	mkdir -p $(ARCH_32)
-	gcc -m32 -Wall -O2 -o $(ARCH_32)/$(BINDTEXTDOMAIN) -fPIC -shared /snap/snapcraft/current/share/snapcraft/extensions/desktop/src/bindtextdomain.c -ldl
+	/usr/bin/gcc -m32 -Wall -O2 -o $(ARCH_32)/$(BINDTEXTDOMAIN) -fPIC -shared /snap/snapcraft/current/share/snapcraft/extensions/desktop/src/bindtextdomain.c -ldl
 endif
 
 clean:
@@ -25,7 +25,11 @@ install:
 	# The sommelier script itself
 	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/sommelier
 
+	# The desktop-launch script itself
+	install -D -m755 scripts/desktop-launch "$(DESTDIR)"/bin/desktop-launch
+
 	# Empty directories for mounting content snaps
+	install -d "$(DESTDIR)"/graphics
 	install -d "$(DESTDIR)"/wine-runtime
 	install -d "$(DESTDIR)"/wine-platform
 
@@ -35,10 +39,6 @@ install:
 	install -D -m644 config/noto-sans-cjk-tc.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-tc.reg
 	install -D -m644 config/noto-sans-cjk-hk.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-hk.reg
 	install -D -m644 config/noto-sans-cjk-sc.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-sc.reg
-
-	# Themes
-	install -D -m644 themes/light/light.msstyles "$(DESTDIR)"/sommelier/themes/light/light.msstyles
-	install -D -m644 themes/light/light.reg "$(DESTDIR)"/sommelier/themes/light/light.reg
 
 	# bindtextdomain patch
 ifeq ($(HW_PLATFORM), x86_64)
