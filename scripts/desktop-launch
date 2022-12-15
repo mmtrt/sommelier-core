@@ -157,32 +157,23 @@ export XCURSOR_PATH="$WINE_DESKOP_RUNTIME/usr/share/icons"
 prepend_dir XCURSOR_PATH "$SNAP/share/icons"
 
 # Mesa Libs for OpenGL support
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/mesa"
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/mesa-egl"
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/x86_64-linux-gnu/mesa"
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/x86_64-linux-gnu/mesa-egl"
-# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/mesa"
-# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/mesa-egl"
-# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/mesa"
-# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/mesa-egl"
+append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/mesa"
+append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/mesa-egl"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/\$LIB/mesa"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/\$LIB/mesa-egl"
 
-append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH"
-append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu"
+append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/\$LIB"
 
 # Tell libGL and libva where to find the drivers
-export LIBGL_DRIVERS_PATH="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/dri"
-append_dir LIBGL_DRIVERS_PATH "$WINE_DESKOP_RUNTIME/usr/lib/x86_64-linux-gnu/dri"
-append_dir LIBGL_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/dri"
-append_dir LIBGL_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/dri"
+export LIBGL_DRIVERS_PATH="$WINE_DESKOP_RUNTIME/usr/\$LIB/dri"
+append_dir LIBGL_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/\$LIB/dri"
 append_dir LD_LIBRARY_PATH "$LIBGL_DRIVERS_PATH"
 
-append_dir LIBVA_DRIVERS_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/dri"
-append_dir LIBVA_DRIVERS_PATH "$WINE_DESKOP_RUNTIME/usr/lib/x86_64-linux-gnu/dri"
-append_dir LIBVA_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/dri"
-append_dir LIBVA_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/dri"
+append_dir LIBVA_DRIVERS_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/dri"
+append_dir LIBVA_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/\$LIB/dri"
 
 # Set where the VDPAU drivers are located
-export VDPAU_DRIVER_PATH="/usr/lib/$ARCH/vdpau/"
+export VDPAU_DRIVER_PATH="/usr/\$LIB/vdpau/"
 if [ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]; then
   export VDPAU_DRIVER_PATH="/var/lib/snapd/lib/gl/vdpau"
   # Prevent picking VA-API (Intel/AMD) over NVIDIA VDPAU; on PRIME systems for example
@@ -200,20 +191,23 @@ append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl"
 append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/vdpau"
 
 # Unity7 export (workaround for https://launchpad.net/bugs/1638405)
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/libunity"
+append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/libunity"
 
 # Pulseaudio export
-append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/pulseaudio"
+append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/pulseaudio"
+
+# SAMBA Libs for ntlm_auth to function
+append_dir LD_LIBRARY_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/samba"
 
 # EGL vendor files on glvnd enabled systems
 prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
 append_dir __EGL_VENDOR_LIBRARY_DIRS "$WINE_DESKOP_RUNTIME/usr/share/glvnd/egl_vendor.d"
 
 # Tell GStreamer where to find its plugins
-export GST_PLUGIN_PATH="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
-export GST_PLUGIN_SYSTEM_PATH="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
+export GST_PLUGIN_PATH="$WINE_DESKOP_RUNTIME/usr/\$LIB/gstreamer-1.0"
+export GST_PLUGIN_SYSTEM_PATH="$WINE_DESKOP_RUNTIME/usr/\$LIB/gstreamer-1.0"
 # gst plugin scanner doesn't install in the correct path: https://github.com/ubuntu/snapcraft-desktop-helpers/issues/43
-export GST_PLUGIN_SCANNER="$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
+export GST_PLUGIN_SCANNER="$WINE_DESKOP_RUNTIME/usr/\$LIB/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
 
 # XDG Config
 prepend_dir XDG_CONFIG_DIRS "$WINE_DESKOP_RUNTIME/etc/xdg"
@@ -304,7 +298,7 @@ if [ "$wayland_available" = true ]; then
   # Does not hurt to specify this as well, just in case
   export QT_QPA_PLATFORM=wayland-egl
 fi
-append_dir GTK_PATH "$WINE_DESKOP_RUNTIME/usr/lib/$ARCH/gtk-3.0"
+append_dir GTK_PATH "$WINE_DESKOP_RUNTIME/usr/\$LIB/gtk-3.0"
 
 ###############################
 # Mark update and exec binary #
