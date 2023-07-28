@@ -25,6 +25,12 @@ install:
 	# The sommelier script itself
 	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/sommelier
 
+	# The mesa-utils
+	install -D -m755 scripts/glxgears "$(DESTDIR)"/bin/glxgears
+	install -D -m755 scripts/glxinfo "$(DESTDIR)"/bin/glxinfo
+	install -D -m755 scripts/vkcube "$(DESTDIR)"/bin/vkcube
+	install -D -m755 scripts/vulkaninfo "$(DESTDIR)"/bin/vulkaninfo
+
 	# The desktop-launch script itself
 	install -D -m755 scripts/desktop-launch "$(DESTDIR)"/bin/desktop-launch
 
