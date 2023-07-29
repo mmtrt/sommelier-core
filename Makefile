@@ -46,6 +46,9 @@ install:
 	install -D -m644 config/noto-sans-cjk-hk.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-hk.reg
 	install -D -m644 config/noto-sans-cjk-sc.reg "$(DESTDIR)"/sommelier/config/noto-sans-cjk-sc.reg
 
+	# hooks
+	install -D -m755 scripts/configure "$(DESTDIR)"/meta/hooks/configure
+
 	# bindtextdomain patch
 ifeq ($(HW_PLATFORM), x86_64)
 	install -D -m644 $(ARCH_32)/$(BINDTEXTDOMAIN) "$(LIB_DIR)"/$(ARCH_32)/$(BINDTEXTDOMAIN)
