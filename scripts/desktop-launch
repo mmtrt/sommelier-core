@@ -216,7 +216,7 @@ append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/share/alsa"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/libunity"
 
 # Pulseaudio export
-append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/pulseaudio"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/pulseaudio"
 
 # SAMBA Libs for ntlm_auth to function
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/samba"
