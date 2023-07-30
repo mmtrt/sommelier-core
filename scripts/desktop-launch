@@ -219,6 +219,7 @@ append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/vdpau"
 
 ### Audio stuff
 
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/alsa-lib"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/alsa-lib"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/share/alsa"
 
@@ -227,6 +228,7 @@ append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/libunit
 
 # Pulseaudio export
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/pulseaudio"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/pulseaudio"
 
 # SAMBA Libs for ntlm_auth to function
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/samba"
