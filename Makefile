@@ -1,26 +1,5 @@
 #!/usr/bin/make -f
 
-LIB_DIR	     := $(DESTDIR)/lib
-BINDTEXTDOMAIN  := bindtextdomain.so
-HW_PLATFORM     := $(shell uname --hardware-platform)
-ARCH_32         := i386-linux-gnu
-
-build:
-	# Build the 32-bit version of the bindtextdomain patch. This patch
-	# makes it easier for applications to find gettext translations shipped
-	# by snaps. 
-	#
-	# The Gnome extensions only compile the library for 64-bit arch. 
-ifeq ($(HW_PLATFORM), x86_64)
-	apt-get -y install libc6-dev-i386
-	apt-get -y install gcc-multilib
-	mkdir -p $(ARCH_32)
-	/usr/bin/gcc -m32 -Wall -O2 -o $(ARCH_32)/$(BINDTEXTDOMAIN) -fPIC -shared /snap/snapcraft/current/share/snapcraft/extensions/desktop/src/bindtextdomain.c -ldl
-endif
-
-clean:
-	rm -rf $(ARCH_32)
-
 install:
 	# The sommelier script itself
 	install -D -m755 scripts/sommelier "$(DESTDIR)"/bin/sommelier
@@ -48,8 +27,3 @@ install:
 
 	# hooks
 	install -D -m755 scripts/configure "$(DESTDIR)"/meta/hooks/configure
-
-	# bindtextdomain patch
-ifeq ($(HW_PLATFORM), x86_64)
-	install -D -m644 $(ARCH_32)/$(BINDTEXTDOMAIN) "$(LIB_DIR)"/$(ARCH_32)/$(BINDTEXTDOMAIN)
-endif
