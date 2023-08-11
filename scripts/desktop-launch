@@ -7,16 +7,11 @@
 START=$(date +%s.%N)
 
 if ! snapctl is-connected "gaming-mesa"; then
-msg=" Not connected to the gaming-mesa content interface.\n
- To connect:\n
- sudo snap connect $SNAP_NAME:gaming-mesa gaming-graphics-core22"
+msg="Not connected to the gaming-mesa content interface.\n
+To connect:\n
+ snap connect $SNAP_NAME:gaming-mesa gaming-graphics-core22 "
   if command -v "$SNAP"/wine-runtime/usr/bin/yad &>/dev/null ; then
-    LD_LIBRARY_PATH="$SNAP/wine-runtime/usr/lib/x86_64-linux-gnu" "$SNAP"/wine-runtime/usr/bin/yad --title="$SNAP_NAME - Error" --error --text "${msg}" --button="OK":1 --center --width=400 --text-width=400 --fixed 2>/dev/null || exit 0
-  else
-    echo "ERROR: not connected to the gaming-mesa content interface."
-    echo "To connect:"
-    echo "sudo snap connect $SNAP_NAME:gaming-mesa gaming-graphics-core22"
-    exit 0
+    LD_LIBRARY_PATH="$SNAP/wine-runtime/usr/lib/x86_64-linux-gnu" "$SNAP"/wine-runtime/usr/bin/yad --title="$SNAP_NAME - Error" --error --text "${msg}" --button="OK":1 --center --width=400 --text-width=400 --fixed --selectable-labels 2>/dev/null || exit 0
   fi
   exit 1
 fi
