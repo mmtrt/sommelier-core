@@ -16,15 +16,15 @@ RUNTIME=$SNAP/wine-runtime
 cat > "$snap_ld_so_conf" <<EOF
 /var/lib/snapd/lib/gl
 /var/lib/snapd/lib/gl32
-$RUNTIME/lib/x86_64-linux-gnu
-$RUNTIME/lib/i386-linux-gnu
-$RUNTIME/lib
-$RUNTIME/usr/lib/x86_64-linux-gnu
-$RUNTIME/usr/lib/i386-linux-gnu
-$RUNTIME/usr/lib
-$RUNTIME/usr/lib/x86_64-linux-gnu/dri
-$RUNTIME/usr/lib/i386-linux-gnu/dri
-$RUNTIME/usr/lib/i386-linux-gnu/pulseaudio
+$SNAP/lib/x86_64-linux-gnu
+$SNAP/lib/i386-linux-gnu
+$SNAP/lib
+$SNAP/usr/lib/x86_64-linux-gnu
+$SNAP/usr/lib/i386-linux-gnu
+$SNAP/usr/lib
+$SNAP/usr/lib/x86_64-linux-gnu/dri
+$SNAP/usr/lib/i386-linux-gnu/dri
+$SNAP/usr/lib/i386-linux-gnu/pulseaudio
 $SNAP/graphics/lib
 $SNAP/graphics/usr/lib
 $SNAP/graphics/usr/lib/i386-linux-gnu
