@@ -10,7 +10,7 @@ if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
   set -x
 fi
 
-if [[ "$SNAP_ARCH" != "amd64" && "$SNAP_ARCH" != "i386" ]]; then
+if [[ "$SNAP_ARCH" != "amd64" && "$SNAP_ARCH" != "i386" && "$SNAP_ARCH" != "arm64" ]]; then
   echo "ERROR: Host architecture ($SNAP_ARCH) unsupported."
   exit 1
 fi
@@ -68,10 +68,10 @@ init_wine() {
   fi
 
   if [[ -n "${WINEARCH:-}" ]]; then
-    if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" && "${SNAP_ARCH}" == "arm64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
         echo "WARNING: Old Wine prefix is win32, but WINEARCH is not 'win32'. Backing up old Wine prefix and generating a win64 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
-    elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" && "${SNAP_ARCH}" == "arm64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
         echo "WARNING: Old Wine prefix is win64, but WINEARCH is not 'win64'. Backing up old Wine prefix and generating a win32 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
     fi
@@ -354,7 +354,11 @@ append_dir PATH "$WINE_PLATFORM/bin"
 #       otherwise by WINEARCH
 # Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
 #       its own.
+if [ $SNAP_ARCH = "arm64" ]; then
+export WINELOADER="$SNAP/bin/box86 $WINE_PLATFORM/bin/wine"
+else
 export WINELOADER="$WINE_PLATFORM/bin/wine"
+fi
 
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
