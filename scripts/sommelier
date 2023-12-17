@@ -437,6 +437,8 @@ append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
 
+append_dir LD_LIBRARY_PATH "$SNAP/usr/lib/gl4es"
+
 # Don't Stop wine from updating $WINEPREFIX automatically
 if [[ -f "${WINEPREFIX}/.update-timestamp" ]]; then
   chkstmp="$(grep -c disable "${WINEPREFIX}/.update-timestamp")"
