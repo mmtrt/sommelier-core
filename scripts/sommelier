@@ -354,7 +354,7 @@ append_dir PATH "$WINE_PLATFORM/bin"
 #       otherwise by WINEARCH
 # Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
 #       its own.
-export WINELOADER="$WINE_PLATFORM/bin/wine"
+export WINELOADER="$WINE_PLATFORM/bin/wine64"
 
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
