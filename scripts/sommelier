@@ -124,7 +124,7 @@ init_wine() {
   fi
 
   # Create the Wineprefix
-  "${WINELOADER}" wineboot --init 2>&1 | \
+  "$SNAP/usr/local/bin/box86" "${WINELOADER}" wineboot --init 2>&1 | \
   yad --progress --title="Preparing Windows compatibility layer" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --pulsate 2&>/dev/null
   # Opt out of winetricks metrics - we ninja this to avoid dialogs
   if [[ ! -f "${XDG_CACHE_HOME}/winetricks/track_usage" ]]; then
@@ -144,19 +144,19 @@ init_wine() {
 
   # Better support for Chinese fonts.
   if (locale | grep 'LANG=ja_JP') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-jp.reg"
+    "$SNAP/usr/local/bin/box86" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-jp.reg"
     sleep 1
   elif (locale | grep 'LANG=ko_KR') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-kr.reg"
+    "$SNAP/usr/local/bin/box86" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-kr.reg"
     sleep 1
   elif (locale | grep -e 'LANG=zh_CN' -e 'LANG=zh_SG') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-sc.reg"
+    "$SNAP/usr/local/bin/box86" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-sc.reg"
     sleep 1
   elif (locale | grep 'LANG=zh_HK') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-hk.reg"
+    "$SNAP/usr/local/bin/box86" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-hk.reg"
     sleep 1
   elif (locale | grep -e 'LANG=zh_MO' -e 'LANG=zh_TW') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-tc.reg"
+    "$SNAP/usr/local/bin/box86" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-tc.reg"
     sleep 1
   fi
   echo "$SNAP_REVISION" > "$SNAP_USER_COMMON/.last_snap_revision"
@@ -205,7 +205,7 @@ install_app() {
     EXE_NAME=$(basename "${LOCAL_INSTALL_EXE}")
     yes | yad --progress --title="Installing ${EXE_NAME}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate &
     INSTALL_YAD_PID="$!"
-    "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+    "$SNAP/usr/local/bin/box86" "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
     kill "$INSTALL_YAD_PID"
   fi
 
@@ -279,10 +279,10 @@ start_app() {
       # instead.
       native_res=$(xrandr -q | grep XWAYLAND | cut -d' ' -f3 | cut -d'+' -f1 | sort -r -n | sort -r -n | head -n 1)
     fi
-    "${WINELOADER}" explorer /desktop="virtual","${native_res}" "${app}" "${ACTION_ARGS[@]}"
+    "$SNAP/usr/local/bin/box86" "${WINELOADER}" explorer /desktop="virtual","${native_res}" "${app}" "${ACTION_ARGS[@]}"
     local exit_code="$?"
   else
-    "${WINELOADER}" "${app}" "${ACTION_ARGS[@]}"
+    "$SNAP/usr/local/bin/box86" "${WINELOADER}" "${app}" "${ACTION_ARGS[@]}"
     local exit_code="$?"
   fi
 
@@ -354,11 +354,7 @@ append_dir PATH "$WINE_PLATFORM/bin"
 #       otherwise by WINEARCH
 # Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
 #       its own.
-if [ $SNAP_ARCH = "arm64" ]; then
-export WINELOADER="$SNAP/bin/box86 $WINE_PLATFORM/bin/wine"
-else
 export WINELOADER="$WINE_PLATFORM/bin/wine"
-fi
 
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
@@ -498,7 +494,7 @@ elif [[ "$ACTION" = "run-exe" ]]; then
   fi
 
   # Convert Windows path to unix
-  RUN_EXE=$("$WINELOADER" winepath "$RUN_EXE")
+  RUN_EXE=$("$SNAP/usr/local/bin/box86" "$WINELOADER" winepath "$RUN_EXE")
 
   # Install if the executable doesn't exist or the snap version changed.
   if [[ ! -e "$RUN_EXE"  || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
@@ -508,5 +504,5 @@ elif [[ "$ACTION" = "run-exe" ]]; then
   # Run the application
   start_app
 else
-  "$WINELOADER" "$ACTION" "${ACTION_ARGS[@]}"
+  "$SNAP/usr/local/bin/box86" "$WINELOADER" "$ACTION" "${ACTION_ARGS[@]}"
 fi
