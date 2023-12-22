@@ -290,7 +290,7 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${platform_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||g') ${platform_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||;s|-core20||;s|-core22||') ${platform_snap_name}"
     echo ""
     exit 1
   else
@@ -329,7 +329,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
   runtime_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-runtime' \
+      'default-provider: *wine-platform-runtime*' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
@@ -341,7 +341,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${runtime_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||g') ${runtime_snap_name}"
+    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||;s|core20|c20|;s|core22|c22|') ${runtime_snap_name}"
     echo ""
     exit 1
   else
