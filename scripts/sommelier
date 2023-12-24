@@ -10,7 +10,7 @@ if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
   set -x
 fi
 
-if [[ "$SNAP_ARCH" != "amd64" && "$SNAP_ARCH" != "i386" ]]; then
+if [[ "$SNAP_ARCH" != "amd64" && "$SNAP_ARCH" != "i386" && "$SNAP_ARCH" != "arm64" ]]; then
   echo "ERROR: Host architecture ($SNAP_ARCH) unsupported."
   exit 1
 fi
@@ -63,17 +63,17 @@ init_wine() {
   echo "Initialising Wine.."
 
   if [[ -n "${WINEARCH:-}" ]]; then
-    if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" && "${SNAP_ARCH}" == "arm64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
         echo "WARNING: Old Wine prefix is win32, but WINEARCH is not 'win32'. Backing up old Wine prefix and generating a win64 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
-    elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" && "${SNAP_ARCH}" == "arm64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
         echo "WARNING: Old Wine prefix is win64, but WINEARCH is not 'win64'. Backing up old Wine prefix and generating a win32 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
     fi
   fi
 
   # Create the Wineprefix
-  "${WINELOADER}" wineboot --init 2>&1 | \
+  "$SNAP/usr/local/bin/box64" "${WINELOADER}" wineboot --init 2>&1 | \
   yad --progress --title="Preparing Windows compatibility layer" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --pulsate
   # Opt out of winetricks metrics - we ninja this to avoid dialogs
   if [[ ! -f "${XDG_CACHE_HOME}/winetricks/track_usage" ]]; then
@@ -95,19 +95,19 @@ init_wine() {
 
   # Better support for Chinese fonts.
   if (locale | grep 'LANG=ja_JP') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-jp.reg"
+    "$SNAP/usr/local/bin/box64" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-jp.reg"
     sleep 1
   elif (locale | grep 'LANG=ko_KR') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-kr.reg"
+    "$SNAP/usr/local/bin/box64" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-kr.reg"
     sleep 1
   elif (locale | grep -e 'LANG=zh_CN' -e 'LANG=zh_SG') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-sc.reg"
+    "$SNAP/usr/local/bin/box64" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-sc.reg"
     sleep 1
   elif (locale | grep 'LANG=zh_HK') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-hk.reg"
+    "$SNAP/usr/local/bin/box64" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-hk.reg"
     sleep 1
   elif (locale | grep -e 'LANG=zh_MO' -e 'LANG=zh_TW') >/dev/null 2>&1; then
-    "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-tc.reg"
+    "$SNAP/usr/local/bin/box64" "$WINELOADER" regedit "$SNAP/sommelier/config/noto-sans-cjk-tc.reg"
     sleep 1
   fi
   echo "$SNAP_REVISION" > "$SNAP_USER_COMMON/.last_snap_revision"
@@ -159,12 +159,12 @@ install_app() {
     FILE_END="${EXE_NAME##*.}"
     FILE_TYPE="${FILE_END,,}" # force lowercase
     if [[ "$FILE_TYPE" == 'exe' ]]; then
-        "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+        "$SNAP/usr/local/bin/box64" "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
     elif [[ "$FILE_TYPE" == 'msi' ]]; then
-        "${WINELOADER}" msiexec /i "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+        "$SNAP/usr/local/bin/box64" "${WINELOADER}" msiexec /i "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
     else
         echo "WARNING: Unsupported file type: $FILE_TYPE. This feature is deprecated, please contact the sommelier-core devs for more info."
-        "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+        "$SNAP/usr/local/bin/box64" "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
     fi
     kill "$INSTALL_YAD_PID"
   fi
@@ -239,10 +239,10 @@ start_app() {
       # instead.
       native_res=$(xrandr -q | grep XWAYLAND | cut -d' ' -f3 | cut -d'+' -f1 | sort -r -n | sort -r -n | head -n 1)
     fi
-    "${WINELOADER}" explorer /desktop="virtual","${native_res}" "${app}" "${ACTION_ARGS[@]}"
+    "$SNAP/usr/local/bin/box64" "${WINELOADER}" explorer /desktop="virtual","${native_res}" "${app}" "${ACTION_ARGS[@]}"
     local exit_code="$?"
   else
-    "${WINELOADER}" "${app}" "${ACTION_ARGS[@]}"
+    "$SNAP/usr/local/bin/box64" "${WINELOADER}" "${app}" "${ACTION_ARGS[@]}"
     local exit_code="$?"
   fi
 
@@ -314,7 +314,7 @@ append_dir PATH "$WINE_PLATFORM/bin"
 #       otherwise by WINEARCH
 # Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
 #       its own.
-export WINELOADER="$WINE_PLATFORM/bin/wine"
+export WINELOADER="$WINE_PLATFORM/bin/wine64"
 
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
@@ -393,6 +393,8 @@ append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
 
+export SDL_VIDEO_GL_DRIVER="$SNAP/usr/lib/gl4es"
+
 # Don't Stop wine from updating $WINEPREFIX automatically
 if [[ -f "${WINEPREFIX}/.update-timestamp" ]]; then
   chkstmp="$(grep -c disable "${WINEPREFIX}/.update-timestamp")"
@@ -450,7 +452,7 @@ elif [[ "$ACTION" = "run-exe" ]]; then
   fi
 
   # Convert Windows path to unix
-  RUN_EXE=$("$WINELOADER" winepath "$RUN_EXE")
+  RUN_EXE=$("$SNAP/usr/local/bin/box64" "$WINELOADER" winepath "$RUN_EXE")
 
   # Install if the executable doesn't exist or the snap version changed.
   if [[ ! -e "$RUN_EXE"  || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
@@ -460,5 +462,5 @@ elif [[ "$ACTION" = "run-exe" ]]; then
   # Run the application
   start_app
 else
-  "$WINELOADER" "$ACTION" "${ACTION_ARGS[@]}"
+  "$SNAP/usr/local/bin/box64" "$WINELOADER" "$ACTION" "${ACTION_ARGS[@]}"
 fi
