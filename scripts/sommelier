@@ -457,7 +457,16 @@ else
 fi
 
 # Start the requested program.
-if [[ "$ACTION" = "winetricks" ]]; then
+if [[ "$ACTION" = "dotnet" ]]; then
+  # Install if the executable doesn't exist or the snap version changed.
+  if [[ ! -e "$WINEPREFIX/drive_c/Westwood/RA2/Resources/BinariesNET8/UniversalGL/clientogl.dll" || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
+    install_app
+  else
+    dotnet "${ACTION_ARGS[@]}"
+  fi
+elif [[ "$ACTION" = "syringe" ]]; then
+  "$WINELOADER" Syringe.exe -i=Ares.dll -i=CnCNet-Spawner.dll -i=Phobos.dll \ "gamemd-spawn.exe" -SPAWN -LOG -CD -RA2ModeSaveID=0x8d113b94
+elif [[ "$ACTION" = "winetricks" ]]; then
   "$WINETRICKS" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
@@ -479,7 +488,7 @@ elif [[ "$ACTION" = "run-exe" ]]; then
   RUN_EXE=$("$WINELOADER" winepath "$RUN_EXE")
 
   # Install if the executable doesn't exist or the snap version changed.
-  if [[ ! -e "$RUN_EXE"  || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
+  if [[ ! -e "$RUN_EXE"  || ! -e "$WINEPREFIX/drive_c/Westwood/RA2/Resources/BinariesNET8/UniversalGL/clientogl.dll" || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
     install_app
   fi
 
