@@ -30,7 +30,7 @@ ensure_dir_exists() {
 
 # Note: We avoid using `eval` because we don't want to expand variable names
 #       in paths. For example: LD_LIBRARY_PATH paths might contain `$LIB`.
-prepend_dir() {
+function prepend_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
@@ -39,7 +39,7 @@ prepend_dir() {
   fi
 }
 
-append_dir() {
+function append_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
@@ -48,7 +48,7 @@ append_dir() {
   fi
 }
 
-element_in() {
+function element_in() {
   local e match="$1"
   shift
   for e; do [[ "$e" == "$match" ]] && return 0; done
@@ -60,12 +60,13 @@ element_in() {
 #######################
 
 init_wine() {
-  echo "Initialising Wine.."
-
-  if [[ -d "$SNAP/winedata/wine" ]]; then
-    cp -urs "$SNAP/winedata/wine" "${XDG_CACHE_HOME}"
-    cp -urs "$SNAP/winedata/winetricks" "${XDG_CACHE_HOME}"
+  # Run pre-init hook
+  if [[ -f "$SNAP/sommelier/hooks/pre-init" ]]; then
+    echo "Running hook '$SNAP/sommelier/hooks/pre-init'"
+    . "$SNAP/sommelier/hooks/pre-init"
   fi
+
+  echo "Initialising Wine.."
 
   if [[ -n "${WINEARCH:-}" ]]; then
     if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
@@ -74,51 +75,6 @@ init_wine() {
     elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
         echo "WARNING: Old Wine prefix is win64, but WINEARCH is not 'win64'. Backing up old Wine prefix and generating a win32 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
-    fi
-  fi
-
-  if [[ -n "${SOMMELIER_INSTALL_MONO:-}" ]]; then
-    if [[ $(grep -c -s -e mscor -e mono "$WINEPREFIX"/user.reg) -eq 0 ]]; then
-      WINE_VER=$(strings "$WINE_PLATFORM"/lib/libwine.so.1 "$WINE_PLATFORM"/lib/wine/ntdll.so "$WINE_PLATFORM"/lib/wine/i386-unix/ntdll.so 2>/dev/null | grep "wine-[\.0-9]" | cut -d "-" -f 2)
-      MONO_VER=$(wget "https://source.winehq.org/source/dlls/appwiz.cpl/addons.c?%21v=wine-${WINE_VER}" -qO- | grep -Po 'MONO_VERSION</a>.*[0-9]"' | cut -d'"' -f4)
-      if [[ $(ls "$SNAP"/wine-platform* | grep -c stable) -eq 1 ]]; then
-      # For future reference setting of MONO_VER see https://github.com/wine-mirror/wine/tree/stable of wine-stable
-      case "$WINE_VER" in
-      3.0.1|3.0.2|3.0.3|3.0.4|3.0.5)
-        MONO_VER="4.7.1"
-        ;;
-
-      4.0.1|4.0.2|4.0.3|4.0.4)
-        MONO_VER="4.7.5"
-        ;;
-
-      5.0.1|5.0.2|5.0.3|5.0.4|5.0.5)
-        MONO_VER="4.9.4"
-        ;;
-
-      6.0.1|6.0.2|6.0.3|6.0.4)
-        MONO_VER="5.1.1"
-        ;;
-
-      7.0.1|7.0.2|7.0.3|7.0.4)
-        MONO_VER="7.0.0-x86"
-        ;;
-      *)
-        MONO_VER="$MONO_VER-x86"
-        ;;
-      esac
-    fi
-      MONO_URL="https://dl.winehq.org/wine/wine-mono/$(cut -d'-' -f1 <<< ${MONO_VER})/wine-mono-${MONO_VER}.msi"
-      # If we've been given an installer URL derive the filename
-      MONO_MSI="$(basename "${MONO_URL//\?*/}")"
-      # Create wine cache dir
-      ensure_dir_exists "${XDG_CACHE_HOME}"/wine
-      # Download Wine Mono to cache
-      if [[ ! -f "${XDG_CACHE_HOME}/wine/${MONO_MSI}" ]]; then
-        wget "${MONO_URL}" -O "${XDG_CACHE_HOME}/wine/${MONO_MSI}" 2>&1 | \
-        perl -p -e '$| = 1; s/^.* +([0-9]+%) +([0-9,.]+[GMKB]) +([0-9hms,.]+).*$/\1\n# Downloading... \2 (\3)/' | \
-        yad --progress --title="Downloading ${MONO_MSI}" --width=400 --center --no-buttons --auto-close --auto-kill --on-top --no-escape 2&>/dev/null
-      fi
     fi
   fi
 
@@ -131,15 +87,17 @@ init_wine() {
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
-  if [[ -L "${WINEPREFIX}/drive_c/users/$USER/Downloads" && -d "${WINEPREFIX}/drive_c/users/$USER/Downloads" ]]; then
-    find "${WINEPREFIX}/drive_c/users/$USER" -type l -name Downloads | xargs rm 2>/dev/null
-    source "$XDG_CONFIG_HOME/user-dirs.dirs"
-    ln -s "$XDG_DOWNLOAD_DIR" "${WINEPREFIX}/drive_c/users/$USER/"
-  fi
-
   # link ttf & ttc fonts from root to wineprefix
   ensure_dir_exists "$WINEPREFIX/drive_c/windows/Fonts"
   find /usr/share/fonts/ -type f \( -name "*.ttf" -o -name "*.ttc" \) -exec ln -vs "{}" "$WINEPREFIX/drive_c/windows/Fonts/" \; &>/dev/null
+
+  if [[ -z "${SOMMELIER_NO_THEME:-}" ]]; then
+    # Install Zhiyi's light theme and set as default
+    ensure_dir_exists "$WINEPREFIX/drive_c/windows/resources/themes/light"
+    cp -r "$SNAP/sommelier/themes/"* "$WINEPREFIX/drive_c/windows/resources/themes"
+    "$WINELOADER" regedit "$SNAP/sommelier/themes/light/light.reg"
+    sleep 1
+  fi
 
   # Better support for Chinese fonts.
   if (locale | grep 'LANG=ja_JP') >/dev/null 2>&1; then
@@ -204,7 +162,16 @@ install_app() {
     EXE_NAME=$(basename "${LOCAL_INSTALL_EXE}")
     yes | yad --progress --title="Installing ${EXE_NAME}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate &
     INSTALL_YAD_PID="$!"
-    "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+    FILE_END="${EXE_NAME##*.}"
+    FILE_TYPE="${FILE_END,,}" # force lowercase
+    if [[ "$FILE_TYPE" == 'exe' ]]; then
+        "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+    elif [[ "$FILE_TYPE" == 'msi' ]]; then
+        "${WINELOADER}" msiexec /i "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+    else
+        echo "WARNING: Unsupported file type: $FILE_TYPE. This feature is deprecated, please contact the sommelier-core devs for more info."
+        "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
+    fi
     kill "$INSTALL_YAD_PID"
   fi
 
@@ -324,12 +291,22 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
       || true
   )"
 
+  platform_snap_plug_name="$(
+    grep \
+      --extended-regexp \
+      '*wine-[[:digit:]]' \
+      $SNAP/meta/snap.yaml \
+      | cut --delimiter=: --fields=1 \
+      | sed 's/  //' \
+      || true
+  )"
+
   if test -n "${platform_snap_name:-}"; then
     echo "ERROR: You need to connect this snap to the wine platform snap."
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${platform_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $platform_snap_name | sed 's|-platform||;s|-core22||') ${platform_snap_name}"
+    echo "snap connect $SNAP_NAME:${platform_snap_plug_name} ${platform_snap_name}"
     echo ""
     exit 1
   else
@@ -368,10 +345,20 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
   runtime_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-runtime-core22' \
+      'default-provider: *wine-platform-runtime' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
+      || true
+  )"
+
+  runtime_snap_plug_name="$(
+    grep \
+      --extended-regexp \
+      '  wine-runtime' \
+      $SNAP/meta/snap.yaml \
+      | cut --delimiter=: --fields=1 \
+      | sed 's/  //' \
       || true
   )"
 
@@ -380,7 +367,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
     echo ""
     echo "You can do this with those commands:"
     echo "snap install ${runtime_snap_name}"
-    echo "snap connect $SNAP_NAME:$(echo $runtime_snap_name | sed 's|-platform||;s|ore||') ${runtime_snap_name}"
+    echo "snap connect $SNAP_NAME:${runtime_snap_plug_name} ${runtime_snap_name}"
     echo ""
     exit 1
   else
@@ -432,9 +419,7 @@ fi
 # file associations for the applications you install in wine. This does not
 # work in a snap, however, since those are handled by snapd instead. The only
 # thing it does is pollute ~/Desktop with broken `.desktop` files.
-if [[ $(grep -c winemenubulder "$WINE_PLATFORM"/share/wine/wine.inf 2&>/dev/null) -ge 1 ]]; then
-  export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-};winemenubuilder.exe=d"
-fi
+export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-};winemenubuilder.exe=d"
 
 if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini"  || "$(cat "$SNAP_USER_COMMON/.last_snap_revision" 2>/dev/null)" != "$SNAP_REVISION" ]]; then
   init_wine

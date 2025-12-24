@@ -20,6 +20,7 @@ $RUNTIME/lib/x86_64-linux-gnu
 $RUNTIME/lib/i386-linux-gnu
 $RUNTIME/lib
 $RUNTIME/usr/lib/x86_64-linux-gnu
+$RUNTIME/usr/lib/x86_64-linux-gnu/pulseaudio
 $RUNTIME/usr/lib/i386-linux-gnu
 $RUNTIME/usr/lib
 $RUNTIME/usr/lib/x86_64-linux-gnu/dri

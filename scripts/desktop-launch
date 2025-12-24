@@ -6,10 +6,10 @@
 # shellcheck disable=SC2034
 START=$(date +%s.%N)
 
-if ! snapctl is-connected "gaming-mesa"; then
+if ! snapctl is-connected "gaming-graphics-core24"; then
 msg="Not connected to the gaming-mesa content interface.\n
 To connect:\n
- snap connect $SNAP_NAME:gaming-mesa gaming-graphics-core22 "
+ snap connect $SNAP_NAME:gaming-graphics-core24 gaming-graphics-core24 "
   if command -v "$SNAP"/wine-runtime/usr/bin/yad &>/dev/null ; then
     LD_LIBRARY_PATH="$SNAP/wine-runtime/usr/lib/x86_64-linux-gnu" "$SNAP"/wine-runtime/usr/bin/yad --title="$SNAP_NAME - Error" --error --text "${msg}" --button="OK":1 --center --width=400 --text-width=400 --fixed --selectable-labels 2>/dev/null || exit 0
   fi
@@ -47,9 +47,6 @@ else
   needs_update=true
 fi
 
-# Set $REALHOME to the users real home directory
-REALHOME=$(getent passwd $UID | cut -d ':' -f 6)
-
 export SNAP_DESKTOP_RUNTIME=$SNAP
 export WINE_DESKTOP_RUNTIME=$SNAP/wine-runtime
 
@@ -60,9 +57,10 @@ chmod 700 "$XDG_CONFIG_HOME"
 
 # If the user has modified their user-dirs settings, force an update
 if [[ -f "$XDG_CONFIG_HOME/user-dirs.dirs.md5sum" ]]; then
-  if [[ "$(md5sum < "$REALHOME/.config/user-dirs.dirs")" != "$(cat "$XDG_CONFIG_HOME/user-dirs.dirs.md5sum")" ||
+  if [[ "$(md5sum < "$SNAP_REAL_HOME/.config/user-dirs.dirs")" != "$(cat "$XDG_CONFIG_HOME/user-dirs.dirs.md5sum")" ||
         ( -f "$XDG_CONFIG_HOME/user-dirs.locale.md5sum" &&
-          "$(md5sum < "$REALHOME/.config/user-dirs.locale")" != "$(cat "$XDG_CONFIG_HOME/user-dirs.locale.md5sum")" ) ]]; then
+          "$(md5sum < "$SNAP_REAL_HOME/.config/user-dirs.locale")" != "$(cat "$XDG_CONFIG_HOME/user-dirs.locale.md5sum")" )
+  ]]; then
     needs_update=true
   fi
 else
@@ -77,13 +75,21 @@ if [[ -d $SNAP_USER_DATA/.config ]]; then
   rm -r $SNAP_USER_DATA/.config
 fi
 
-# We need to force our snap's arch to i386, but this only works on an i386 compatible arch
-if [ "$SNAP_ARCH" = "amd64" ] || [ "$SNAP_ARCH" = "i386" ]; then
-  export SNAP_LAUNCHER_ARCH_TRIPLET="i386-linux-gnu"
+if [ "$SNAP_ARCH" = "amd64" ]; then
+  ARCH="x86_64-linux-gnu"
+elif [ "$SNAP_ARCH" = "armhf" ]; then
+  ARCH="arm-linux-gnueabihf"
+elif [ "$SNAP_ARCH" = "arm64" ]; then
+  ARCH="aarch64-linux-gnu"
+elif [ "$SNAP_ARCH" = "ppc64el" ]; then
+  ARCH="powerpc64le-linux-gnu"
 else
-  echo "UNSUPPORTED ARCH $SNAP_ARCH - only i386 and x86_64 are supported"
-  exit 1
+  ARCH="$SNAP_ARCH-linux-gnu"
 fi
+
+# Force i386
+export ARCH="i386-linux-gnu"
+export SNAP_LAUNCHER_ARCH_TRIPLET="$ARCH"
 
 ###############################################
 # Launcher common exports for any desktop app #
@@ -109,35 +115,28 @@ function append_dir() {
   fi
 }
 
-function can_open_file() {
-  [ -f "$1" ] && [ -r "$1" ]
-}
 
-function update_xdg_dirs_values() {
-  local save_initial_values=false
-  local XDG_DIRS="DOCUMENTS DESKTOP DOWNLOAD MUSIC PICTURES VIDEOS PUBLICSHARE TEMPLATES"
-  unset XDG_SPECIAL_DIRS_PATHS
+function strip_unreachable_dirs() {
+  local -n var=$1
+  local dirs="${var}"
 
-  if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/user-dirs.dirs" ]; then
-    # shellcheck source=/dev/null
-    source "${XDG_CONFIG_HOME:-$HOME/.config}/user-dirs.dirs"
-  fi
-
-  if [ -z ${XDG_SPECIAL_DIRS+x} ]; then
-    save_initial_values=true
-  fi
-
-  for d in $XDG_DIRS; do
-    var="XDG_${d}_DIR"
-    value="${!var}"
-
-    if [ "$save_initial_values" = true ]; then
-      XDG_SPECIAL_DIRS+=("$var")
-      XDG_SPECIAL_DIRS_INITIAL_PATHS+=("$value")
+  tmp=""
+  local IFS=:
+  for d in $dirs; do
+    # Just checking existence and the `x` bit isn't enough
+    # we need to see if we can actually `ls` it because of apparmor
+    # quirks
+    ls $d > /dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+      append_dir tmp "$d"
+    else
+      echo "INFO: filtering $d out of ${!var} because it is unreachable"
     fi
 
-    XDG_SPECIAL_DIRS_PATHS+=("$value")
   done
+
+  export "${!var}=${tmp}"
+  unset tmp
 }
 
 function is_subpath() {
@@ -164,48 +163,45 @@ prepend_dir XCURSOR_PATH "$SNAP/share/icons"
 
 export FONTCONFIG_PATH="$WINE_DESKTOP_RUNTIME/etc/fonts"
 
-#### Setting up graphics content snap paths
-
-GRAPHICS_CORE_LIB="$SNAP_DESKTOP_RUNTIME/graphics/usr/lib"
-GRAPHICS_CORE_SHARE="$SNAP_DESKTOP_RUNTIME/graphics/usr/share"
-
 # Mesa Libs for OpenGL support
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/i386-linux-gnu/mesa"
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/i386-linux-gnu/mesa-egl"
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/x86_64-linux-gnu/mesa"
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/x86_64-linux-gnu/mesa-egl"
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/i386-linux-gnu"
-append_dir LD_LIBRARY_PATH "$GRAPHICS_CORE_LIB/x86_64-linux-gnu"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/mesa"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/mesa-egl"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/mesa"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/mesa-egl"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/mesa"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/mesa-egl"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/mesa"
+# append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/mesa-egl"
 
-# Ensure nvidia driver libs are loaded
-prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/"
+append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH"
+append_dir LD_LIBRARY_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu"
 
 # Tell libGL and libva where to find the drivers
-export LIBGL_DRIVERS_PATH="$GRAPHICS_CORE_LIB/i386-linux-gnu/dri"
-append_dir LIBGL_DRIVERS_PATH "$GRAPHICS_CORE_LIB/x86_64-linux-gnu/dri"
+export LIBGL_DRIVERS_PATH="$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/dri"
+append_dir LIBGL_DRIVERS_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/dri"
+append_dir LIBGL_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/dri"
+append_dir LIBGL_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/dri"
+append_dir LD_LIBRARY_PATH "$LIBGL_DRIVERS_PATH"
 
-# EGL vendor files on glvnd enabled systems
-prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
-append_dir __EGL_VENDOR_LIBRARY_DIRS "$GRAPHICS_CORE_SHARE/glvnd/egl_vendor.d"
+append_dir LIBVA_DRIVERS_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/dri"
+append_dir LIBVA_DRIVERS_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/dri"
+append_dir LIBVA_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/$ARCH/dri"
+append_dir LIBVA_DRIVERS_PATH "$SNAP_DESKTOP_RUNTIME/graphics/usr/lib/x86_64-linux-gnu/dri"
 
-append_dir LIBVA_DRIVERS_PATH "$GRAPHICS_CORE_LIB/i386-linux-gnu/dri"
-append_dir LIBVA_DRIVERS_PATH "$GRAPHICS_CORE_LIB/x86_64-linux-gnu/dri"
 
-append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu"
 
-### Fix for Vulkan ICD paths being hardcoded under root
-
-VULKAN_OVERRIDES=$SNAP_USER_COMMON/.vulkan/icd.d
-mkdir -p $VULKAN_OVERRIDES
-
-ICDs=$GRAPHICS_CORE_SHARE/vulkan/icd.d/; 
-for f in $(ls $ICDs); do 
-  cat "$ICDs/$f" | jq '.ICD.library_path=$prefix+.ICD.library_path' --arg prefix "$SNAP/graphics" > "$VULKAN_OVERRIDES/$f"
-done
+# Set where the VDPAU drivers are located
+export VDPAU_DRIVER_PATH="/usr/lib/$ARCH/vdpau/"
+if [ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]; then
+  export VDPAU_DRIVER_PATH="/var/lib/snapd/lib/gl/vdpau"
+  # Prevent picking VA-API (Intel/AMD) over NVIDIA VDPAU; on PRIME systems for example
+  unset LIBVA_DRIVERS_PATH
+fi
 
 # Export Vulkan ICD filename paths
-export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$VULKAN_OVERRIDES/radeon_icd.x86_64.json:$VULKAN_OVERRIDES/radeon_icd.i686.json:$VULKAN_OVERRIDES/intel_icd.x86_64.json:$VULKAN_OVERRIDES/intel_icd.i686.json"
+export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$SNAP/graphics/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:$SNAP/graphics/usr/share/vulkan/icd.d/radeon_icd.i686.json:$SNAP/graphics/usr/share/vulkan/icd.d/intel_icd.x86_64.json:$SNAP/graphics/usr/share/vulkan/icd.d/intel_icd.i686.json"
 
 # Workaround in snapd for proprietary nVidia drivers mounts the drivers in
 # /var/lib/snapd/lib/gl that needs to be in LD_LIBRARY_PATH
@@ -214,28 +210,35 @@ export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$VULKAN
 append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl"
 append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/vdpau"
 
+# By sheer luck, this was working in the past, but we need this explicitly
+append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32"
+append_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32/vdpau"
 
 ### Audio stuff
 
-append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/alsa-lib"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/alsa-lib"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/alsa-lib"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/share/alsa"
 
 # Unity7 export (workaround for https://launchpad.net/bugs/1638405)
-append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/libunity"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/libunity"
 
 # Pulseaudio export
-append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/pulseaudio"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/pulseaudio"
 append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/x86_64-linux-gnu/pulseaudio"
 
+# EGL vendor files on glvnd enabled systems
+prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
+append_dir __EGL_VENDOR_LIBRARY_DIRS "$WINE_DESKTOP_RUNTIME/usr/share/glvnd/egl_vendor.d"
+
 # SAMBA Libs for ntlm_auth to function
-append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/samba"
+append_dir LD_LIBRARY_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/samba"
 
 # Tell GStreamer where to find its plugins
-export GST_PLUGIN_PATH="$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/gstreamer-1.0"
-export GST_PLUGIN_SYSTEM_PATH="$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/gstreamer-1.0"
+export GST_PLUGIN_PATH="$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
+export GST_PLUGIN_SYSTEM_PATH="$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/gstreamer-1.0"
 # gst plugin scanner doesn't install in the correct path: https://github.com/ubuntu/snapcraft-desktop-helpers/issues/43
-export GST_PLUGIN_SCANNER="$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
+export GST_PLUGIN_SCANNER="$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
 
 # XDG Config
 prepend_dir XDG_CONFIG_DIRS "$WINE_DESKTOP_RUNTIME/etc/xdg"
@@ -326,7 +329,7 @@ if [ "$wayland_available" = true ]; then
   # Does not hurt to specify this as well, just in case
   export QT_QPA_PLATFORM=wayland-egl
 fi
-append_dir GTK_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/i386-linux-gnu/gtk-3.0"
+append_dir GTK_PATH "$WINE_DESKTOP_RUNTIME/usr/lib/$ARCH/gtk-3.0"
 
 ###############################
 # Mark update and exec binary #
@@ -342,5 +345,62 @@ if [ -n "$SNAP_DESKTOP_DEBUG" ]; then
   echo "Now running: exec $*"
 fi
 
-exec "$@"
- 
+######################################
+# Adjustments to shortcuts and icons #
+######################################
+
+# Set what the desktop folder is and ensure that the folders applications and icons exist.
+DESKTOP_PATH=$(grep "XDG_DESKTOP_DIR" $SNAP_REAL_HOME/.config/user-dirs.dirs | cut -d'=' -f2 | sed 's/"//g' | sed "s#\$HOME#$SNAP_REAL_HOME#g")
+ensure_dir_exists $SNAP_REAL_HOME/.local/share/applications/
+ensure_dir_exists $SNAP_REAL_HOME/.local/share/icons/
+
+# Remove links from previous installs (https://github.com/canonical/steam-snap/pull/451)
+find "$SNAP_REAL_HOME/.local/share/applications/" -type l -lname "$SNAP_USER_COMMON/.local/share/applications/*" -delete
+find "$SNAP_REAL_HOME/.local/share/icons/hicolor/" -type l -lname "$SNAP_USER_COMMON/.local/share/icons/hicolor/*" -delete
+
+# Copy .desktop of Desktop folder
+if [ -d "$SNAP_USER_COMMON/Desktop" ] && [ ! -L "$SNAP_USER_COMMON/Desktop" ]; then
+    for file in "$SNAP_USER_COMMON/Desktop/"*.desktop; do
+        if [ -e "$file" ]; then
+            cp -f "$file" "$DESKTOP_PATH/"
+        fi
+    done
+fi
+
+# Copy icons folder
+if [ -d "$SNAP_USER_COMMON/.local/share/icons" ] && [ ! -L "$SNAP_USER_COMMON/.local/share/icons" ]; then
+    cp -rf "$SNAP_USER_COMMON/.local/share/icons" "$SNAP_REAL_HOME/.local/share/"
+fi
+
+# Copy applications folder
+if [ -d "$SNAP_USER_COMMON/.local/share/applications" ] && [ ! -L "$SNAP_USER_COMMON/.local/share/applications" ]; then
+    cp -rf "$SNAP_USER_COMMON/.local/share/applications" "$SNAP_REAL_HOME/.local/share/"
+fi
+
+rm -r $SNAP_USER_COMMON/Desktop
+rm -r $SNAP_USER_COMMON/.local/share/applications
+rm -r $SNAP_USER_COMMON/.local/share/icons
+
+ln -sf "$DESKTOP_PATH" "$SNAP_USER_COMMON/Desktop"
+ln -sf $SNAP_REAL_HOME/.local/share/applications/ $SNAP_USER_COMMON/.local/share/applications
+ln -sf $SNAP_REAL_HOME/.local/share/icons/ $SNAP_USER_COMMON/.local/share/icons
+
+# Remove links from the user's applications folder that open the applications folder itself.
+find "$SNAP_REAL_HOME/.local/share/applications/" -type l -lname "$SNAP_REAL_HOME/.local/share/applications" -delete
+
+# GTK theme and behavior modifier
+# Those can impact the theme engine used by Qt as well
+gtk_configs=(gtk-4.0/settings.ini gtk-4.0/gtk.css gtk-4.0/bookmarks gtk-4.0/colors.css gtk-3.0/settings.ini gtk-3.0/gtk.css gtk-3.0/bookmarks gtk-3.0/colors.css gtk-2.0/gtkfilechooser.ini)
+for f in "${gtk_configs[@]}"; do
+  dest="$XDG_CONFIG_HOME/$f"
+  if [ ! -L "$dest" ]; then
+    ensure_dir_exists "$(dirname "$dest")"
+    ln -s "$SNAP_REAL_HOME/.config/$f" "$dest"
+  fi
+done
+
+strip_unreachable_dirs XDG_DATA_DIRS
+strip_unreachable_dirs XDG_CONFIG_DIRS
+strip_unreachable_dirs XDG_SPECIAL_DIRS
+
+"$@"
