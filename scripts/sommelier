@@ -272,11 +272,11 @@ fi
 WINE_RELEASE="$(
   grep \
     --extended-regexp \
-    'default-provider: *wine-platform-[[:digit:]]' \
+    'wine-base*' \
     $SNAP/meta/snap.yaml \
-    | cut --delimiter=: --fields=2 \
+    | cut --delimiter=: --fields=1 \
     | sed 's/^ *//;s|-| |g' \
-    | awk '{print $4}'
+    | awk '{print $3}'
 )"
 WINE_PLATFORM="$SNAP/wine-platform/wine-$WINE_RELEASE"
 
@@ -284,17 +284,18 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
   platform_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-[[:digit:]]' \
+      '.*wine-platform' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
+      | tail -1 \
       || true
   )"
 
   platform_snap_plug_name="$(
     grep \
       --extended-regexp \
-      '*wine-[[:digit:]]' \
+      '.*wine-base' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=1 \
       | sed 's/  //' \
