@@ -24,13 +24,13 @@ fi
 #
 # Usage: ensure_dir_exists <path> [<mkdir-options>]...
 #
-ensure_dir_exists() {
-  [[ -d "$1" ]] ||  mkdir -p "$@"
+function ensure_dir_exists() {
+  [ -d "$1" ] ||  mkdir -p "$@"
 }
 
 # Note: We avoid using `eval` because we don't want to expand variable names
 #       in paths. For example: LD_LIBRARY_PATH paths might contain `$LIB`.
-prepend_dir() {
+function prepend_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
@@ -39,7 +39,7 @@ prepend_dir() {
   fi
 }
 
-append_dir() {
+function append_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
@@ -48,7 +48,7 @@ append_dir() {
   fi
 }
 
-element_in() {
+function element_in() {
   local e match="$1"
   shift
   for e; do [[ "$e" == "$match" ]] && return 0; done
@@ -272,11 +272,11 @@ fi
 WINE_RELEASE="$(
   grep \
     --extended-regexp \
-    'default-provider: *wine-platform-[[:digit:]]' \
+    'wine-base*' \
     $SNAP/meta/snap.yaml \
-    | cut --delimiter=: --fields=2 \
+    | cut --delimiter=: --fields=1 \
     | sed 's/^ *//;s|-| |g' \
-    | awk '{print $4}'
+    | awk '{print $3}'
 )"
 WINE_PLATFORM="$SNAP/wine-platform/wine-$WINE_RELEASE"
 
@@ -284,37 +284,29 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
   platform_snap_name="$(
     grep \
       --extended-regexp \
-      'default-provider: *wine-platform-[[:digit:]]' \
+      '.*wine-platform' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
+      | tail -1 \
       || true
   )"
 
   platform_snap_plug_name="$(
     grep \
       --extended-regexp \
-      '*wine-[[:digit:]]' \
+      '.*wine-base' \
       $SNAP/meta/snap.yaml \
       | cut --delimiter=: --fields=1 \
       | sed 's/  //' \
       || true
   )"
 
-  if test -n "${platform_snap_name:-}"; then
-    echo "ERROR: You need to connect this snap to the wine platform snap."
-    echo ""
-    echo "You can do this with those commands:"
-    echo "snap install ${platform_snap_name}"
-    echo "snap connect $SNAP_NAME:${platform_snap_plug_name} ${platform_snap_name}"
-    echo ""
-    exit 1
-  else
-    echo "ERROR: This snap is broken. Please contact the publisher."
-    echo ""
-    echo "The snap has no plugs to the wine platform snap."
-    echo "Please add the plugs to the wine platform"
-    echo ""
+  if ! snapctl is-connected "${platform_snap_plug_name}"; then
+    msg="Not connected to the ${platform_snap_plug_name} content interface.\n
+    To connect:\n
+    snap connect $SNAP_NAME:${platform_snap_plug_name} ${platform_snap_name}:${platform_snap_plug_name} "
+    echo "$msg"
     exit 1
   fi
 fi
@@ -362,20 +354,11 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
       || true
   )"
 
-  if test -n "${runtime_snap_name:-}"; then
-    echo "ERROR: You need to connect this snap to the wine runtime snap."
-    echo ""
-    echo "You can do this with those commands:"
-    echo "snap install ${runtime_snap_name}"
-    echo "snap connect $SNAP_NAME:${runtime_snap_plug_name} ${runtime_snap_name}"
-    echo ""
-    exit 1
-  else
-    echo "ERROR: This snap is broken. Please contact the publisher."
-    echo ""
-    echo "The snap has no plugs to the wine runtime"
-    echo "Please add the plugs to the wine runtime"
-    echo ""
+  if ! snapctl is-connected "${runtime_snap_plug_name}"; then
+    msg="Not connected to the ${runtime_snap_plug_name} content interface.\n
+    To connect:\n
+    snap connect $SNAP_NAME:${runtime_snap_plug_name} ${runtime_snap_name}:${runtime_snap_plug_name} "
+    echo "$msg"
     exit 1
   fi
 fi
