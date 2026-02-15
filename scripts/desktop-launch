@@ -6,17 +6,70 @@
 # shellcheck disable=SC2034
 START=$(date +%s.%N)
 
+platform_snap_name="$(
+  grep \
+    --extended-regexp \
+    '.*wine-platform' \
+    $SNAP/meta/snap.yaml \
+    | cut --delimiter=: --fields=2 \
+    | sed 's/^ *//' \
+    | tail -1 \
+    || true
+)"
+
+platform_snap_plug_name="$(
+  grep \
+    --extended-regexp \
+    '.*wine-base' \
+    $SNAP/meta/snap.yaml \
+    | cut --delimiter=: --fields=1 \
+    | sed 's/  //' \
+    || true
+)"
+
+runtime_snap_name="$(
+  grep \
+    --extended-regexp \
+    'default-provider: *wine-platform-runtime' \
+    $SNAP/meta/snap.yaml \
+    | cut --delimiter=: --fields=2 \
+    | sed 's/^ *//' \
+    || true
+)"
+
+runtime_snap_plug_name="$(
+  grep \
+    --extended-regexp \
+    '  wine-runtime' \
+    $SNAP/meta/snap.yaml \
+    | cut --delimiter=: --fields=1 \
+    | sed 's/  //' \
+    || true
+)"
+
+if ! snapctl is-connected "${platform_snap_plug_name}"; then
+ msg="Not connected to the ${platform_snap_plug_name} content interface.\n
+ To connect:\n
+ snap connect $SNAP_NAME:${platform_snap_plug_name} ${platform_snap_name}:${platform_snap_plug_name} "
+ echo "$msg"
+ exit 1
+fi
+
+if ! snapctl is-connected "${runtime_snap_plug_name}"; then
+ msg="Not connected to the ${runtime_snap_plug_name} content interface.\n
+ To connect:\n
+ snap connect $SNAP_NAME:${runtime_snap_plug_name} ${runtime_snap_name}:${runtime_snap_plug_name} "
+ echo "$msg"
+ exit 1
+fi
+
 if ! snapctl is-connected "gaming-graphics-core24"; then
 msg="Not connected to the gaming-mesa content interface.\n
 To connect:\n
  snap connect $SNAP_NAME:gaming-graphics-core24 gaming-graphics-core24 "
-  if command -v "$SNAP"/wine-runtime/usr/bin/yad &>/dev/null ; then
-    LD_LIBRARY_PATH="$SNAP/wine-runtime/usr/lib/x86_64-linux-gnu" "$SNAP"/wine-runtime/usr/bin/yad --title="$SNAP_NAME - Error" --error --text "${msg}" --button="OK":1 --center --width=400 --text-width=400 --fixed --selectable-labels 2>/dev/null || exit 0
-  fi
+  echo "$msg"
   exit 1
 fi
-
-LD_LIBRARY_PATH=""
 
 # ensure_dir_exists calls `mkdir -p` if the given path is not a directory.
 # This speeds up execution time by avoiding unnecessary calls to mkdir.
