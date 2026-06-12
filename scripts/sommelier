@@ -80,7 +80,7 @@ init_wine() {
 
   # Create the Wineprefix
   "${WINELOADER}" wineboot --init 2>&1 | \
-  yad --progress --title="Preparing Windows compatibility layer" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --pulsate
+  yad --progress --title="Preparing Windows compatibility layer" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --pulsate 2&>/dev/null
   # Opt out of winetricks metrics - we ninja this to avoid dialogs
   if [[ ! -f "${XDG_CACHE_HOME}/winetricks/track_usage" ]]; then
     mkdir -p "${XDG_CACHE_HOME}/winetricks"
@@ -99,7 +99,7 @@ install_app() {
   if [[ -n "${TRICKS:-}" ]]; then
     for TRICK in ${TRICKS}; do
       "${WINETRICKS}" --unattended "${TRICK}" | \
-      yad --progress --title="Installing ${TRICK}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate
+      yad --progress --title="Installing ${TRICK}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate 2&>/dev/null
     done
   fi
 
@@ -116,7 +116,7 @@ install_app() {
 
     wget "${INSTALL_URL}" -O "${TMPDIR}/${INSTALL_EXE}" 2>&1 | \
     perl -p -e '$| = 1; s/^.* +([0-9]+%) +([0-9,.]+[GMKB]) +([0-9hms,.]+).*$/\1\n# Downloading... \2 (\3)/' | \
-    yad --progress --title="Downloading ${INSTALL_EXE}" --width=400 --center --no-buttons --auto-close --auto-kill --on-top --no-escape
+    yad --progress --title="Downloading ${INSTALL_EXE}" --width=400 --center --no-buttons --auto-close --auto-kill --on-top --no-escape 2&>/dev/null
 
     LOCAL_INSTALL_EXE="${TMPDIR}/${INSTALL_EXE}"
   elif [[ -n "${INSTALL_EXE:-}" ]]; then
