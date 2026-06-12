@@ -87,10 +87,6 @@ init_wine() {
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
-  # link ttf & ttc fonts from root to wineprefix
-  ensure_dir_exists "$WINEPREFIX/drive_c/windows/Fonts"
-  find /usr/share/fonts/ -type f \( -name "*.ttf" -o -name "*.ttc" \) -exec ln -vs "{}" "$WINEPREFIX/drive_c/windows/Fonts/" \; &>/dev/null
-
   if [[ -z "${SOMMELIER_NO_THEME:-}" ]]; then
     # Install Zhiyi's light theme and set as default
     ensure_dir_exists "$WINEPREFIX/drive_c/windows/resources/themes/light"
