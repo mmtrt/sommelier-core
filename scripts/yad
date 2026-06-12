@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec $SNAP/wine-runtime/*/usr/bin/yad "$@"
