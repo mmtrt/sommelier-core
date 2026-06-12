@@ -8,7 +8,6 @@ Pros:
 
 * Uses Wine from the wine-platform snaps to reduce the size of your snap.
 * Uses the `gnome-3-28` extension for initializing all the generic desktop stuff.
-* Includes the "Light" theme from [Zhiyi Zhang](https://www.winehq.org/pipermail/wine-devel/2021-June/188444.html) so Windows applications look less ugly.
 * Updates the Wine prefix every time Wine changes. Can upgrade a 32-bit Wine prefix to 64-bit.
 * Reinstalls the Windows app every time the snap `version` changes.
 * Reconfigures Wine every time the snap `revision` or the Wine version changes.
@@ -129,5 +128,4 @@ parts:
 
 ## License
 
-* The Light theme is released under the GNU Lesser General Public License 2.1+.
 * All other content is released under the MIT license.

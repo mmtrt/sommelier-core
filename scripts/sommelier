@@ -87,14 +87,6 @@ init_wine() {
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
-  if [[ -z "${SOMMELIER_NO_THEME:-}" ]]; then
-    # Install Zhiyi's light theme and set as default
-    ensure_dir_exists "$WINEPREFIX/drive_c/windows/resources/themes/light"
-    cp -r "$SNAP/sommelier/themes/"* "$WINEPREFIX/drive_c/windows/resources/themes"
-    "$WINELOADER" regedit "$SNAP/sommelier/themes/light/light.reg"
-    sleep 1
-  fi
-
   echo "$SNAP_REVISION" > "$SNAP_USER_COMMON/.last_snap_revision"
 }
 
