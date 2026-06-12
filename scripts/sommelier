@@ -346,11 +346,41 @@ prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/\$LIB"
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/lib"
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB"
 
+prepend_dir LD_LIBRARY_PATH "$SNAP/gpu-2404/usr/\$LIB"
+
 # Use Wine-platform libraries for GPU access because they also contain 32-bit
 # drivers. The Gnome platform snaps currently only provide 64-bit libraries.
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBGL_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBVA_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
+prepend_dir LIBGL_DRIVERS_PATH "$SNAP/gpu-2404/usr/\$LIB/dri"
+prepend_dir LIBVA_DRIVERS_PATH "$SNAP/gpu-2404/usr/\$LIB/dri"
+
+# Set where the VDPAU drivers are located
+export VDPAU_DRIVER_PATH="/usr/lib/$ARCH/vdpau/"
+if [ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]; then
+  export VDPAU_DRIVER_PATH="/var/lib/snapd/lib/gl/vdpau"
+  # Prevent picking VA-API (Intel/AMD) over NVIDIA VDPAU; on PRIME systems for example
+  unset LIBVA_DRIVERS_PATH
+fi
+
+# Export Vulkan ICD filename paths
+export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/radeon_icd.i686.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/intel_icd.x86_64.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/intel_icd.i686.json"
+
+# Workaround in snapd for proprietary nVidia drivers mounts the drivers in
+# /var/lib/snapd/lib/gl that needs to be in LD_LIBRARY_PATH
+# Without that OpenGL using apps do not work with the nVidia drivers.
+# Ref.: https://bugs.launchpad.net/snappy/+bug/1588192
+prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl"
+prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/vdpau"
+
+# By sheer luck, this was working in the past, but we need this explicitly
+prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32"
+prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32/vdpau"
+
+# EGL vendor files on glvnd enabled systems
+prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
+append_dir __EGL_VENDOR_LIBRARY_DIRS "$SNAP/gpu-2404/usr/share/glvnd/egl_vendor.d"
 
 # Use wine-platform libs for 32-bit audio support.
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/pulseaudio"
