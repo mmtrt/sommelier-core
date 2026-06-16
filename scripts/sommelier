@@ -98,7 +98,7 @@ install_app() {
   # Install additional requirements via winetricks
   if [[ -n "${TRICKS:-}" ]]; then
     for TRICK in ${TRICKS}; do
-      "${WINETRICKS}" --unattended "${TRICK}" | \
+      winetricks --unattended "${TRICK}" | \
       yad --progress --title="Installing ${TRICK}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate 2&>/dev/null
     done
   fi
@@ -388,7 +388,6 @@ prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/pulseaudio"
 # SAMBA Libs for ntlm_auth to function
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/samba"
 
-export WINETRICKS="$WINE_PLATFORM_RUNTIME/bin/winetricks"
 export WINETRICKS_LATEST_VERSION_CHECK="disabled"
 
 export WINEPREFIX="$SNAP_USER_COMMON/.wine"
@@ -402,6 +401,14 @@ append_dir LD_LIBRARY_PATH "$SNAP/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
+
+# Also include any platform-specific libraries if needed
+  export WINE_RUNTIME="/snap/wine-platform-runtime-core24/current"
+
+if [[ -d "$WINE_RUNTIME" ]]; then
+  export PATH="$WINE_RUNTIME/bin:$WINE_RUNTIME/usr/bin:$PATH"
+  export LD_LIBRARY_PATH="$WINE_RUNTIME/usr/\$LIB:$LD_LIBRARY_PATH"
+fi
 
 # Don't Stop wine from updating $WINEPREFIX automatically
 if [[ -f "${WINEPREFIX}/.update-timestamp" ]]; then
@@ -442,7 +449,7 @@ fi
 
 # Start the requested program.
 if [[ "$ACTION" = "winetricks" ]]; then
-  "$WINETRICKS" "${ACTION_ARGS[@]}"
+  winetricks "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "run-exe" ]]; then
