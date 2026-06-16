@@ -86,17 +86,47 @@ init_wine() {
 
   echo "Initialising Wine.."
 
-  if [[ -n "${WINEARCH:-}" ]]; then
-    # PERF: Use $(<file) builtin redirection instead of grep subshells where
-    #       possible; keep grep here since we need pattern matching on the file.
-    if [[ "${WINEARCH}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] \
-        && grep -q "arch=win32" "$WINEPREFIX/system.reg" 2>/dev/null; then
-        echo "WARNING: Old Wine prefix is win32, but WINEARCH is not 'win32'. Backing up old Wine prefix and generating a win64 one."
-        mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
-    elif [[ "${WINEARCH}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] \
-        && grep -q "arch=win64" "$WINEPREFIX/system.reg" 2>/dev/null; then
-        echo "WARNING: Old Wine prefix is win64, but WINEARCH is not 'win64'. Backing up old Wine prefix and generating a win32 one."
-        mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
+  # Back up and wipe an incompatible existing prefix BEFORE calling wineboot.
+  # This must happen unconditionally — not only when WINEARCH is set — because
+  # WoW64 Wine builds do not set WINEARCH but also cannot use a win32 prefix.
+  #
+  # Two cases that require a backup:
+  #   1. WINEARCH is set and the on-disk arch conflicts with it.
+  #   2. The Wine build is WoW64 (no separate 32-bit wineserver) and the
+  #      existing prefix is win32. We detect WoW64 by checking for the absence
+  #      of wine-preloader, which classic 32-bit Wine ships but WoW64 does not.
+  if [[ "${SNAP_ARCH}" == "amd64" && -f "$WINEPREFIX/system.reg" ]]; then
+    local existing_prefix_arch=""
+    if grep -q "arch=win32" "$WINEPREFIX/system.reg" 2>/dev/null; then
+      existing_prefix_arch="win32"
+    elif grep -q "arch=win64" "$WINEPREFIX/system.reg" 2>/dev/null; then
+      existing_prefix_arch="win64"
+    fi
+
+    local needs_backup=0
+    local backup_reason=""
+
+    if [[ -n "$existing_prefix_arch" ]]; then
+      # Case 1: explicit WINEARCH mismatch
+      if [[ -n "${WINEARCH:-}" && "$existing_prefix_arch" != "${WINEARCH}" ]]; then
+        needs_backup=1
+        backup_reason="WINEARCH is '${WINEARCH}' but existing prefix is ${existing_prefix_arch}"
+
+      # Case 2: WoW64 Wine cannot run a win32 prefix.
+      # WoW64 builds have no wine-preloader (32-bit stub); classic builds do.
+      elif [[ "$existing_prefix_arch" == "win32" && -z "${WINEARCH:-}" ]]; then
+        local wine_bin_dir="${WINELOADER%/*}"
+        if [[ ! -f "$wine_bin_dir/wine-preloader" ]]; then
+          needs_backup=1
+          backup_reason="Wine is a WoW64 build and cannot use an existing win32 prefix"
+        fi
+      fi
+    fi
+
+    if [[ "$needs_backup" -eq 1 ]]; then
+      local backup_path="${WINEPREFIX}.bak-$(date +%s)"
+      echo "WARNING: ${backup_reason}. Backing up old prefix to ${backup_path} and regenerating."
+      mv "$WINEPREFIX" "$backup_path"
     fi
   fi
 
@@ -271,12 +301,14 @@ start_app() {
 
   local app
   if [[ -z "${SOMMELIER_KEEP_CWD:-}" ]]; then
-    # PERF: Use bash builtins instead of dirname/basename subshells.
+    # cd to the unix directory; run only the bare filename.
+    # Wine resolves it from CWD — no Windows path conversion needed.
     local app_dir="${RUN_EXE%/*}"
     app="${RUN_EXE##*/}"
     cd "${app_dir}" || exit
   else
-    app="${RUN_EXE}"
+    # Passing the full path to Wine — must be a Windows-style path.
+    app=$("$WINELOADER" winepath -w "$RUN_EXE" 2>/dev/null || echo "$RUN_EXE")
   fi
 
   local exit_code=0
@@ -450,9 +482,13 @@ fi
 # Disable WineMenuBuilder to prevent broken .desktop files on ~/Desktop.
 export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-};winemenubuilder.exe=d"
 
-# PERF: Use $(<file) for reading the revision file — no fork needed.
+# Read stored snap revision safely; avoids $(<file) failing silently when missing.
+_last_revision=""
+[[ -f "$SNAP_USER_COMMON/.last_snap_revision" ]] \
+  && _last_revision=$(<"$SNAP_USER_COMMON/.last_snap_revision")
+
 if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini" \
-    || "$(<"$SNAP_USER_COMMON/.last_snap_revision" 2>/dev/null)" != "$SNAP_REVISION" ]]; then
+    || "$_last_revision" != "$SNAP_REVISION" ]]; then
   init_wine
 fi
 
@@ -488,11 +524,22 @@ elif [[ "$ACTION" = "run-exe" ]]; then
     RUN_EXE="${RUN_EXE/Program Files (x86)/Program Files}"
   fi
 
-  RUN_EXE=$("$WINELOADER" winepath "$RUN_EXE")
+  # Resolve RUN_EXE to a unix path for all filesystem checks (-e, cd).
+  # Only call winepath -u when RUN_EXE looks like a Windows path (backslash
+  # or drive letter prefix). If it is already a unix path (starts with /)
+  # leave it alone — winepath on an unrecognised unix path can return garbage.
+  if [[ "$RUN_EXE" == /* ]]; then
+    : # already a unix path — nothing to do
+  elif [[ "$RUN_EXE" == *\\* || "$RUN_EXE" =~ ^[A-Za-z]: ]]; then
+    RUN_EXE=$("$WINELOADER" winepath -u "$RUN_EXE" 2>/dev/null || echo "$RUN_EXE")
+  fi
 
-  # PERF: Use $(<file) builtin for reading version file.
-  if [[ ! -e "$RUN_EXE" \
-      || "$(<"$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
+  # Read stored snap version safely; avoids $(<file) failing silently when missing.
+  _last_version=""
+  [[ -f "$SNAP_USER_COMMON/.last_snap_version" ]] \
+    && _last_version=$(<"$SNAP_USER_COMMON/.last_snap_version")
+
+  if [[ ! -e "$RUN_EXE" || "$_last_version" != "$SNAP_VERSION" ]]; then
     install_app
   fi
 
