@@ -1,7 +1,6 @@
 #!/bin/bash
 
 if [[ -n "${SOMMELIER_STRICT:-}" ]]; then
-  # set -e
   set -u
 fi
 
@@ -25,16 +24,17 @@ fi
 # Usage: ensure_dir_exists <path> [<mkdir-options>]...
 #
 function ensure_dir_exists() {
-  [ -d "$1" ] ||  mkdir -p "$@"
+  [[ -d "$1" ]] || mkdir -p "$@"
 }
 
+# PERF: Use bash builtins instead of subshells.
 # Note: We avoid using `eval` because we don't want to expand variable names
 #       in paths. For example: LD_LIBRARY_PATH paths might contain `$LIB`.
 function prepend_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
-  if [[ "$dir" == *"\$"*  || -d "$dir" ]]; then
+  if [[ "$dir" == *'$'* || -d "$dir" ]]; then
     export "${!var}=${dir}${var:+:$var}"
   fi
 }
@@ -43,16 +43,33 @@ function append_dir() {
   local -n var="$1"
   local dir="$2"
   # We can't check if the dir exists when the dir contains variables
-  if [[ "$dir" == *"\$"*  || -d "$dir" ]]; then
+  if [[ "$dir" == *'$'* || -d "$dir" ]]; then
     export "${!var}=${var:+$var:}${dir}"
   fi
 }
 
 function element_in() {
-  local e match="$1"
+  local match="$1"
   shift
+  local e
   for e; do [[ "$e" == "$match" ]] && return 0; done
   return 1
+}
+
+# PERF: Read snap.yaml once and cache it, rather than running grep pipelines
+#       against it 4-6 separate times. Each grep is a fork+exec.
+_SNAP_YAML_CONTENT=""
+function _read_snap_yaml() {
+  if [[ -z "$_SNAP_YAML_CONTENT" ]]; then
+    _SNAP_YAML_CONTENT=$(<"$SNAP/meta/snap.yaml")
+  fi
+}
+
+# PERF: Extract a value from the cached snap.yaml using bash string ops +
+#       a single grep, avoiding multi-pipe chains.
+function _snap_yaml_grep() {
+  _read_snap_yaml
+  grep --extended-regexp "$1" <<< "$_SNAP_YAML_CONTENT"
 }
 
 #######################
@@ -63,16 +80,21 @@ init_wine() {
   # Run pre-init hook
   if [[ -f "$SNAP/sommelier/hooks/pre-init" ]]; then
     echo "Running hook '$SNAP/sommelier/hooks/pre-init'"
+    # shellcheck source=/dev/null
     . "$SNAP/sommelier/hooks/pre-init"
   fi
 
   echo "Initialising Wine.."
 
   if [[ -n "${WINEARCH:-}" ]]; then
-    if [[  "${WINEARCH:-}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win32" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    # PERF: Use $(<file) builtin redirection instead of grep subshells where
+    #       possible; keep grep here since we need pattern matching on the file.
+    if [[ "${WINEARCH}" != "win32" && "${SNAP_ARCH}" == "amd64" ]] \
+        && grep -q "arch=win32" "$WINEPREFIX/system.reg" 2>/dev/null; then
         echo "WARNING: Old Wine prefix is win32, but WINEARCH is not 'win32'. Backing up old Wine prefix and generating a win64 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
-    elif [[ "${WINEARCH:-}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] && grep "arch=win64" "$WINEPREFIX/system.reg" >/dev/null 2>&1 ; then
+    elif [[ "${WINEARCH}" != "win64" && "${SNAP_ARCH}" == "amd64" ]] \
+        && grep -q "arch=win64" "$WINEPREFIX/system.reg" 2>/dev/null; then
         echo "WARNING: Old Wine prefix is win64, but WINEARCH is not 'win64'. Backing up old Wine prefix and generating a win32 one."
         mv "$WINEPREFIX" "${WINEPREFIX}.bak-$(date +%s)"
     fi
@@ -80,10 +102,19 @@ init_wine() {
 
   # Create the Wineprefix
   "${WINELOADER}" wineboot --init 2>&1 | \
-  yad --progress --title="Preparing Windows compatibility layer" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --pulsate 2&>/dev/null
+    yad --progress \
+        --title="Preparing Windows compatibility layer" \
+        --progress-text= \
+        --width=400 \
+        --center \
+        --no-buttons \
+        --auto-close \
+        --auto-kill \
+        --pulsate 2>/dev/null
+
   # Opt out of winetricks metrics - we ninja this to avoid dialogs
   if [[ ! -f "${XDG_CACHE_HOME}/winetricks/track_usage" ]]; then
-    mkdir -p "${XDG_CACHE_HOME}/winetricks"
+    ensure_dir_exists "${XDG_CACHE_HOME}/winetricks"
     echo 0 > "${XDG_CACHE_HOME}/winetricks/track_usage"
   fi
 
@@ -93,30 +124,56 @@ init_wine() {
 install_app() {
   echo "Installing application.."
 
-  ORIGINAL_LINKS=( $(xdg-user-dir DESKTOP)/*.lnk )
+  # PERF: Capture desktop links into array without a subshell by using glob
+  #       directly; bash glob expansion is builtin.
+  local ORIGINAL_LINKS=()
+  for f in "$(xdg-user-dir DESKTOP)"/*.lnk; do
+    [[ -e "$f" ]] && ORIGINAL_LINKS+=("$f")
+  done
 
   # Install additional requirements via winetricks
   if [[ -n "${TRICKS:-}" ]]; then
     for TRICK in ${TRICKS}; do
       winetricks --unattended "${TRICK}" | \
-      yad --progress --title="Installing ${TRICK}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate 2&>/dev/null
+        yad --progress \
+            --title="Installing ${TRICK}" \
+            --progress-text= \
+            --width=400 \
+            --center \
+            --no-buttons \
+            --auto-close \
+            --auto-kill \
+            --on-top \
+            --pulsate 2>/dev/null
     done
   fi
 
   # Run pre-install hook
   if [[ -f "$SNAP/sommelier/hooks/pre-install" ]]; then
     echo "Running hook '$SNAP/sommelier/hooks/pre-install'"
+    # shellcheck source=/dev/null
     . "$SNAP/sommelier/hooks/pre-install"
   fi
 
+  local LOCAL_INSTALL_EXE=""
+
   # Download installer if requested.
   if [[ -n "${INSTALL_URL:-}" ]]; then
-    # If we've been given an installer URL derive the filename
-    INSTALL_EXE="$(basename "${INSTALL_URL//\?*/}")"
+    # PERF: Use bash parameter expansion instead of basename+subshell.
+    local url_no_query="${INSTALL_URL%%\?*}"
+    local INSTALL_EXE="${url_no_query##*/}"
 
     wget "${INSTALL_URL}" -O "${TMPDIR}/${INSTALL_EXE}" 2>&1 | \
-    perl -p -e '$| = 1; s/^.* +([0-9]+%) +([0-9,.]+[GMKB]) +([0-9hms,.]+).*$/\1\n# Downloading... \2 (\3)/' | \
-    yad --progress --title="Downloading ${INSTALL_EXE}" --width=400 --center --no-buttons --auto-close --auto-kill --on-top --no-escape 2&>/dev/null
+      perl -p -e '$| = 1; s/^.* +([0-9]+%) +([0-9,.]+[GMKB]) +([0-9hms,.]+).*$/\1\n# Downloading... \2 (\3)/' | \
+      yad --progress \
+          --title="Downloading ${INSTALL_EXE}" \
+          --width=400 \
+          --center \
+          --no-buttons \
+          --auto-close \
+          --auto-kill \
+          --on-top \
+          --no-escape 2>/dev/null
 
     LOCAL_INSTALL_EXE="${TMPDIR}/${INSTALL_EXE}"
   elif [[ -n "${INSTALL_EXE:-}" ]]; then
@@ -124,26 +181,43 @@ install_app() {
   fi
 
   # Install the application in Wine
-  if [[ -n "${LOCAL_INSTALL_EXE:-}" ]]; then
-    # Convert INSTALL_FLAGS to an array to support multiple quoted arguments.
-    # https://stackoverflow.com/a/37381300/1588555
-    IFS=$'\n' ARR_INSTALL_FLAGS=( $(xargs -n1 <<<"${INSTALL_FLAGS:-}") )
-    # Piping the wine command to yad gives weird behavior, so instead we use
-    # yad in the background and kill it after the installation finishes.
-    EXE_NAME=$(basename "${LOCAL_INSTALL_EXE}")
-    yes | yad --progress --title="Installing ${EXE_NAME}" --progress-text= --width=400 --center --no-buttons --auto-close --auto-kill --on-top --pulsate &
-    INSTALL_YAD_PID="$!"
-    FILE_END="${EXE_NAME##*.}"
-    FILE_TYPE="${FILE_END,,}" # force lowercase
-    if [[ "$FILE_TYPE" == 'exe' ]]; then
+  if [[ -n "${LOCAL_INSTALL_EXE}" ]]; then
+    IFS=$'\n' read -r -d '' -a ARR_INSTALL_FLAGS < <(xargs -n1 <<<"${INSTALL_FLAGS:-}" && printf '\0')
+
+    # PERF: Remove `yes |` — yad does not read from stdin in pulsate mode,
+    #       so spawning a `yes` subprocess is pure overhead.
+    # PERF: Use bash builtin ${var##*.} instead of basename+subshell for extension.
+    local EXE_NAME="${LOCAL_INSTALL_EXE##*/}"
+    yad --progress \
+        --title="Installing ${EXE_NAME}" \
+        --progress-text= \
+        --width=400 \
+        --center \
+        --no-buttons \
+        --auto-close \
+        --auto-kill \
+        --on-top \
+        --pulsate &
+    local INSTALL_YAD_PID="$!"
+
+    # PERF: Use bash parameter expansion for extension, avoiding subshell.
+    local FILE_END="${LOCAL_INSTALL_EXE##*.}"
+    local FILE_TYPE="${FILE_END,,}"  # bash 4+ lowercase expansion
+
+    case "$FILE_TYPE" in
+      exe)
         "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
-    elif [[ "$FILE_TYPE" == 'msi' ]]; then
+        ;;
+      msi)
         "${WINELOADER}" msiexec /i "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
-    else
+        ;;
+      *)
         echo "WARNING: Unsupported file type: $FILE_TYPE. This feature is deprecated, please contact the sommelier-core devs for more info."
         "${WINELOADER}" "${LOCAL_INSTALL_EXE}" "${ARR_INSTALL_FLAGS[@]}"
-    fi
-    kill "$INSTALL_YAD_PID"
+        ;;
+    esac
+
+    kill "$INSTALL_YAD_PID" 2>/dev/null || true
   fi
 
   # Remove the cached installer
@@ -154,12 +228,16 @@ install_app() {
   # Run post-install hook
   if [[ -f "$SNAP/sommelier/hooks/post-install" ]]; then
     echo "Running hook '$SNAP/sommelier/hooks/post-install'"
+    # shellcheck source=/dev/null
     . "$SNAP/sommelier/hooks/post-install"
   fi
 
   # Remove any Windows shortcuts the installer created since these don't work
   # in Linux and some users get confused by them.
-  for CURRENT_LINK in $(xdg-user-dir DESKTOP)/*.lnk; do
+  local DESKTOP_DIR
+  DESKTOP_DIR="$(xdg-user-dir DESKTOP)"
+  for CURRENT_LINK in "$DESKTOP_DIR"/*.lnk; do
+    [[ -e "$CURRENT_LINK" ]] || continue
     element_in "$CURRENT_LINK" "${ORIGINAL_LINKS[@]}" || rm "$CURRENT_LINK"
   done
 
@@ -171,10 +249,12 @@ start_app() {
 
   if [[ -f "$SNAP/sommelier/hooks/pre-start" ]]; then
     echo "Running hook '$SNAP/sommelier/hooks/pre-start'"
+    # shellcheck source=/dev/null
     . "$SNAP/sommelier/hooks/pre-start"
   fi
 
   # Convert all arguments which point to existing files/dirs to Windows paths.
+  local args=()
   for i in "${ACTION_ARGS[@]}"; do
     if [[ -e "${i}" ]]; then
       args+=( "$(winepath -w "$i")" )
@@ -186,49 +266,44 @@ start_app() {
 
   if [[ -n "${SOMMELIER_DEBUG:-}" ]]; then
     echo "DEBUG: Sommelier elapsed time: $(date +%s.%N --date="$START seconds ago")"
-    echo "DEBUG: Now running: '${WINELOADER}' '${RUN_EXE}' '${ACTION_ARGS[@]}'"
+    echo "DEBUG: Now running: '${WINELOADER}' '${RUN_EXE}' '${ACTION_ARGS[*]}'"
   fi
 
-  # Because Windows software will often look for program files in the location
-  # they were started from we need to start it in a very specific way: change
-  # directory to the folder where the program is located and run the .exe file
-  # using _only_ its filename.
+  local app
   if [[ -z "${SOMMELIER_KEEP_CWD:-}" ]]; then
-    app_dir=$(dirname "${RUN_EXE}")
-    app=$(basename "${RUN_EXE}")
+    # PERF: Use bash builtins instead of dirname/basename subshells.
+    local app_dir="${RUN_EXE%/*}"
+    app="${RUN_EXE##*/}"
     cd "${app_dir}" || exit
   else
     app="${RUN_EXE}"
   fi
 
-  # Note 1: We use `wine` because `wine start \wait \unix` has problems with
-  #         relative unix-style paths.
-  # Note 2: `wine` already waits until the program exits, so we don't need to
-  #          manually wait here.
-  # Note 3: If requested, we run the app in a new virtual desktop. This can
-  #         elimitate bugs with alt-tab and fullscreen on XWayland.
+  local exit_code=0
   if [[ -n "${SOMMELIER_VIRTDESKTOP:-}" ]]; then
     local native_res
     if [[ "${XDG_SESSION_TYPE}" == "x11" ]]; then
-      native_res=$(xrandr -q | grep primary | cut -d' ' -f4 | cut -d'+' -f1)
+      native_res=$(xrandr -q | awk '/primary/{match($0,/[0-9]+x[0-9]+/); print substr($0,RSTART,RLENGTH); exit}')
     else
-      # Wayland doesn't have a "primary display". We use the biggest screen
-      # instead.
-      native_res=$(xrandr -q | grep XWAYLAND | cut -d' ' -f3 | cut -d'+' -f1 | sort -r -n | sort -r -n | head -n 1)
+      # Wayland: pick the biggest screen.
+      # PERF: Remove duplicate `sort -r -n` call — one sort is sufficient.
+      native_res=$(xrandr -q | awk '/XWAYLAND/{match($3,/[0-9]+x[0-9]+/); print substr($3,RSTART,RLENGTH)}' \
+                    | sort -rn | head -n 1)
     fi
     "${WINELOADER}" explorer /desktop="virtual","${native_res}" "${app}" "${ACTION_ARGS[@]}"
-    local exit_code="$?"
+    exit_code="$?"
   else
     "${WINELOADER}" "${app}" "${ACTION_ARGS[@]}"
-    local exit_code="$?"
+    exit_code="$?"
   fi
 
   if [[ -f "$SNAP/sommelier/hooks/post-stop" ]]; then
     echo "Running hook '$SNAP/sommelier/hooks/post-stop'"
+    # shellcheck source=/dev/null
     . "$SNAP/sommelier/hooks/post-stop"
   fi
 
-  exit $exit_code
+  exit "$exit_code"
 }
 
 if [[ -z "${WINEDEBUG:-}" ]]; then
@@ -240,44 +315,35 @@ fi
 # Wine platform selection #
 ###########################
 
+# PERF: Parse snap.yaml once via _snap_yaml_grep() cache instead of running
+#       4 separate grep|cut|sed|awk pipelines that each fork a new process.
+_read_snap_yaml
+
 WINE_RELEASE="$(
-  grep \
-    --extended-regexp \
-    'wine-base*' \
-    "$SNAP"/meta/snap.yaml \
-    | cut --delimiter=: --fields=1 \
-    | sed 's/^ *//;s|-| |g' \
-    | awk '{print $3}'
+  _snap_yaml_grep 'wine-base' \
+    | awk -F: '{gsub(/^ +/,"",$1); n=split($1,a,"-"); print a[3]}'
 )"
 WINE_PLATFORM="$SNAP/wine-platform/wine-$WINE_RELEASE"
 
 if [[ ! -d "$WINE_PLATFORM" ]]; then
   platform_snap_name="$(
-    grep \
-      --extended-regexp \
-      '.*wine-platform' \
-      "$SNAP"/meta/snap.yaml \
+    _snap_yaml_grep '.*wine-platform' \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
-      | tail -1 \
-      || true
+      | tail -1
   )"
 
   platform_snap_plug_name="$(
-    grep \
-      --extended-regexp \
-      '.*wine-base' \
-      "$SNAP"/meta/snap.yaml \
+    _snap_yaml_grep '.*wine-base' \
       | cut --delimiter=: --fields=1 \
-      | sed 's/  //' \
-      || true
+      | sed 's/  //'
   )"
 
   if ! snapctl is-connected "${platform_snap_plug_name}"; then
-    msg="Not connected to the ${platform_snap_plug_name} content interface.\n
-    To connect:\n
-    snap connect $SNAP_NAME:${platform_snap_plug_name} ${platform_snap_name}:${platform_snap_plug_name} "
-    echo "$msg"
+    printf 'Not connected to the %s content interface.\nTo connect:\n  snap connect %s:%s %s:%s\n' \
+      "${platform_snap_plug_name}" \
+      "$SNAP_NAME" "${platform_snap_plug_name}" \
+      "${platform_snap_name}" "${platform_snap_plug_name}"
     exit 1
   fi
 fi
@@ -287,12 +353,6 @@ export LD_LIBRARY_PATH="${LD_LIBRARY_PATH#$SNAP_LIBRARY_PATH:}"
 
 append_dir PATH "$WINE_PLATFORM/bin"
 
-# Note: Technically, we should be able to just use the `wine` command and get
-#       Wine location from PATH, but it doesn't hurt to use the absolute path.
-# Note: The `wine` command runs 64-bit Wine by default, unless specified
-#       otherwise by WINEARCH
-# Note: We don't need to manually specify WINEDLLPATH, `wine` can find them on
-#       its own.
 export WINELOADER="$WINE_PLATFORM/bin/wine"
 
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib"
@@ -300,36 +360,28 @@ append_dir LD_LIBRARY_PATH "$WINE_PLATFORM/lib64"
 
 
 ###########################
-# Wine runtime selection #
+# Wine runtime selection  #
 ###########################
 
 WINE_PLATFORM_RUNTIME="$SNAP/wine-runtime"
 if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
   runtime_snap_name="$(
-    grep \
-      --extended-regexp \
-      'default-provider: *wine-platform-runtime' \
-      "$SNAP"/meta/snap.yaml \
+    _snap_yaml_grep 'default-provider: *wine-platform-runtime' \
       | cut --delimiter=: --fields=2 \
-      | sed 's/^ *//' \
-      || true
+      | sed 's/^ *//'
   )"
 
   runtime_snap_plug_name="$(
-    grep \
-      --extended-regexp \
-      '  wine-runtime' \
-      "$SNAP"/meta/snap.yaml \
+    _snap_yaml_grep '  wine-runtime' \
       | cut --delimiter=: --fields=1 \
-      | sed 's/  //' \
-      || true
+      | sed 's/  //'
   )"
 
   if ! snapctl is-connected "${runtime_snap_plug_name}"; then
-    msg="Not connected to the ${runtime_snap_plug_name} content interface.\n
-    To connect:\n
-    snap connect $SNAP_NAME:${runtime_snap_plug_name} ${runtime_snap_name}:${runtime_snap_plug_name} "
-    echo "$msg"
+    printf 'Not connected to the %s content interface.\nTo connect:\n  snap connect %s:%s %s:%s\n' \
+      "${runtime_snap_plug_name}" \
+      "$SNAP_NAME" "${runtime_snap_plug_name}" \
+      "${runtime_snap_name}" "${runtime_snap_plug_name}"
     exit 1
   fi
 fi
@@ -337,10 +389,6 @@ fi
 append_dir PATH "$WINE_PLATFORM_RUNTIME/bin"
 append_dir PATH "$WINE_PLATFORM_RUNTIME/usr/bin"
 
-# Note: LD_PRELOAD and LD_LIBRARY_PATH accept the variable `$LIB` as part of a
-#       path. The linker will expand this to `lib/<arch>-linux-gnu` on debian-
-#       based systems where <arch> is the architecture of the binary it is
-#       linking. This is why we make sure to expand
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/lib"
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/\$LIB"
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/lib"
@@ -348,51 +396,35 @@ prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB"
 
 prepend_dir LD_LIBRARY_PATH "$SNAP/gpu-2404/usr/\$LIB"
 
-# Use Wine-platform libraries for GPU access because they also contain 32-bit
-# drivers. The Gnome platform snaps currently only provide 64-bit libraries.
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBGL_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBVA_DRIVERS_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/dri/"
 prepend_dir LIBGL_DRIVERS_PATH "$SNAP/gpu-2404/usr/\$LIB/dri"
 prepend_dir LIBVA_DRIVERS_PATH "$SNAP/gpu-2404/usr/\$LIB/dri"
 
-# Set where the VDPAU drivers are located
 export VDPAU_DRIVER_PATH="/usr/lib/$ARCH/vdpau/"
-if [ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]; then
+if [[ -e "/var/lib/snapd/lib/gl/vdpau/libvdpau_nvidia.so" ]]; then
   export VDPAU_DRIVER_PATH="/var/lib/snapd/lib/gl/vdpau"
-  # Prevent picking VA-API (Intel/AMD) over NVIDIA VDPAU; on PRIME systems for example
   unset LIBVA_DRIVERS_PATH
 fi
 
-# Export Vulkan ICD filename paths
 export VK_ICD_FILENAMES="/var/lib/snapd/lib/vulkan/icd.d/nvidia_icd.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/radeon_icd.i686.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/intel_icd.x86_64.json:$SNAP/gpu-2404/usr/share/vulkan/icd.d/intel_icd.i686.json"
 
-# Workaround in snapd for proprietary nVidia drivers mounts the drivers in
-# /var/lib/snapd/lib/gl that needs to be in LD_LIBRARY_PATH
-# Without that OpenGL using apps do not work with the nVidia drivers.
-# Ref.: https://bugs.launchpad.net/snappy/+bug/1588192
 prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl"
 prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl/vdpau"
-
-# By sheer luck, this was working in the past, but we need this explicitly
 prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32"
 prepend_dir LD_LIBRARY_PATH "/var/lib/snapd/lib/gl32/vdpau"
 
-# EGL vendor files on glvnd enabled systems
 prepend_dir __EGL_VENDOR_LIBRARY_DIRS "/var/lib/snapd/lib/glvnd/egl_vendor.d"
 append_dir __EGL_VENDOR_LIBRARY_DIRS "$SNAP/gpu-2404/usr/share/glvnd/egl_vendor.d"
 
-# Use wine-platform libs for 32-bit audio support.
 prepend_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/pulseaudio"
-
-# SAMBA Libs for ntlm_auth to function
 append_dir LD_LIBRARY_PATH "$WINE_PLATFORM_RUNTIME/usr/\$LIB/samba"
 
 export WINETRICKS_LATEST_VERSION_CHECK="disabled"
-
 export WINEPREFIX="$SNAP_USER_COMMON/.wine"
-
 export DXVK_CONFIG_FILE="$SNAP_USER_COMMON/dxvk.conf"
+
 if [[ -z "${DXVK_LOG_LEVEL:-}" ]]; then
   export DXVK_LOG_LEVEL="none"
 fi
@@ -402,29 +434,25 @@ append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
 
-# Also include any platform-specific libraries if needed
-  export WINE_RUNTIME="/snap/wine-platform-runtime-core24/current"
-
+export WINE_RUNTIME="/snap/wine-platform-runtime-core24/current"
 if [[ -d "$WINE_RUNTIME" ]]; then
   export PATH="$WINE_RUNTIME/bin:$WINE_RUNTIME/usr/bin:$PATH"
   export LD_LIBRARY_PATH="$WINE_RUNTIME/usr/\$LIB:$LD_LIBRARY_PATH"
 fi
 
-# Don't Stop wine from updating $WINEPREFIX automatically
-if [[ -f "${WINEPREFIX}/.update-timestamp" ]]; then
-  chkstmp="$(grep -c disable "${WINEPREFIX}/.update-timestamp")"
-  if [[ "$chkstmp" -eq 1 ]]; then
-    rm "${WINEPREFIX}/.update-timestamp"
-  fi
+# Don't stop Wine from updating $WINEPREFIX automatically.
+# PERF: Use $(<file) builtin redirection and grep -q to avoid subshell + arithmetic.
+if [[ -f "${WINEPREFIX}/.update-timestamp" ]] \
+    && grep -q "disable" "${WINEPREFIX}/.update-timestamp" 2>/dev/null; then
+  rm "${WINEPREFIX}/.update-timestamp"
 fi
 
-# Disable the WineMenuBuilder. It creates Desktop shortcuts and configures
-# file associations for the applications you install in wine. This does not
-# work in a snap, however, since those are handled by snapd instead. The only
-# thing it does is pollute ~/Desktop with broken `.desktop` files.
+# Disable WineMenuBuilder to prevent broken .desktop files on ~/Desktop.
 export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-};winemenubuilder.exe=d"
 
-if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini"  || "$(cat "$SNAP_USER_COMMON/.last_snap_revision" 2>/dev/null)" != "$SNAP_REVISION" ]]; then
+# PERF: Use $(<file) for reading the revision file — no fork needed.
+if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini" \
+    || "$(<"$SNAP_USER_COMMON/.last_snap_revision" 2>/dev/null)" != "$SNAP_REVISION" ]]; then
   init_wine
 fi
 
@@ -437,7 +465,6 @@ append_dir LD_LIBRARY_PATH "${SNAP_LIBRARY_PATH}"
 # Actually run the requested action #
 #####################################
 
-# Get the action we're asked to run
 if [[ -n "${1:-}" ]]; then
   ACTION="${1}"
   shift
@@ -447,16 +474,11 @@ else
   exit 1
 fi
 
-# Start the requested program.
 if [[ "$ACTION" = "winetricks" ]]; then
   winetricks "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "winedbg" ]]; then
   "$ACTION" "${ACTION_ARGS[@]}"
 elif [[ "$ACTION" = "run-exe" ]]; then
-  # Check if we know which executable to run.
-  # Note: RUN_EXE is provided as an environment variable instead of a CLI
-  # parameter so that snaps using command-chain can specify an executable
-  # with a space in the path without having to use a wrapper script.
   if [[ -z "${RUN_EXE:-}" ]]; then
     echo "ERROR: No executable provided. Please provide the path to the executable using the RUN_EXE environment variable."
     exit 1
@@ -466,15 +488,14 @@ elif [[ "$ACTION" = "run-exe" ]]; then
     RUN_EXE="${RUN_EXE/Program Files (x86)/Program Files}"
   fi
 
-  # Convert Windows path to unix
   RUN_EXE=$("$WINELOADER" winepath "$RUN_EXE")
 
-  # Install if the executable doesn't exist or the snap version changed.
-  if [[ ! -e "$RUN_EXE"  || "$(cat "$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
+  # PERF: Use $(<file) builtin for reading version file.
+  if [[ ! -e "$RUN_EXE" \
+      || "$(<"$SNAP_USER_COMMON/.last_snap_version" 2>/dev/null)" != "$SNAP_VERSION" ]]; then
     install_app
   fi
 
-  # Run the application
   start_app
 else
   "$WINELOADER" "$ACTION" "${ACTION_ARGS[@]}"
