@@ -196,7 +196,7 @@ start_app() {
   if [[ -z "${SOMMELIER_KEEP_CWD:-}" ]]; then
     app_dir=$(dirname "${RUN_EXE}")
     app=$(basename "${RUN_EXE}")
-    cd "${app_dir}"
+    cd "${app_dir}" || exit
   else
     app="${RUN_EXE}"
   fi
@@ -244,7 +244,7 @@ WINE_RELEASE="$(
   grep \
     --extended-regexp \
     'wine-base*' \
-    $SNAP/meta/snap.yaml \
+    "$SNAP"/meta/snap.yaml \
     | cut --delimiter=: --fields=1 \
     | sed 's/^ *//;s|-| |g' \
     | awk '{print $3}'
@@ -256,7 +256,7 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
     grep \
       --extended-regexp \
       '.*wine-platform' \
-      $SNAP/meta/snap.yaml \
+      "$SNAP"/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
       | tail -1 \
@@ -267,7 +267,7 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
     grep \
       --extended-regexp \
       '.*wine-base' \
-      $SNAP/meta/snap.yaml \
+      "$SNAP"/meta/snap.yaml \
       | cut --delimiter=: --fields=1 \
       | sed 's/  //' \
       || true
@@ -309,7 +309,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
     grep \
       --extended-regexp \
       'default-provider: *wine-platform-runtime' \
-      $SNAP/meta/snap.yaml \
+      "$SNAP"/meta/snap.yaml \
       | cut --delimiter=: --fields=2 \
       | sed 's/^ *//' \
       || true
@@ -319,7 +319,7 @@ if [[ ! -f "$WINE_PLATFORM_RUNTIME/bin/wprfile" ]]; then
     grep \
       --extended-regexp \
       '  wine-runtime' \
-      $SNAP/meta/snap.yaml \
+      "$SNAP"/meta/snap.yaml \
       | cut --delimiter=: --fields=1 \
       | sed 's/  //' \
       || true
