@@ -7,7 +7,7 @@ This repository contains the `sommelier` script which helps you put a Windows ap
 Pros:
 
 * Uses Wine from the wine-platform snaps to reduce the size of your snap.
-* Uses the `gnome-3-28` extension for initializing all the generic desktop stuff.
+* Uses the `gnome` extension for initializing all the generic desktop stuff.
 * Updates the Wine prefix every time Wine changes. Can upgrade a 32-bit Wine prefix to 64-bit.
 * Reinstalls the Windows app every time the snap `version` changes.
 * Reconfigures Wine every time the snap `revision` or the Wine version changes.
@@ -23,31 +23,28 @@ Pros:
     parts:
       sommelier-core:
         plugin: make
-        source: https://github.com/snapcrafters/sommelier-core.git
-        source-branch: "1.0"
+        source: https://github.com/mmtrt/sommelier-core.git
+        source-branch: "core24"
     ```
 1. Add the following `plug` definitions:
     ```yaml
     plugs:
-      wine-runtime:
+      wine-runtime-c24:
         interface: content
         target: $SNAP/wine-runtime
-        default-provider: wine-platform-runtime
-      wine-5-stable: # number must match the number in default-provider
+        default-provider: wine-platform-runtime-core24
+      wine-base-stable: # have three base names stable devel staging
         interface: content
         target: $SNAP/wine-platform
-        default-provider: wine-platform-5-stable # must be a valid snap
+        default-provider: wine-platform # must be a valid snap
     ```
-    - WINE version snaps are named `wine-platform-[version]-[branch]` where:
-      - Version is one of `4`, `5`, or `6`
-        - And branch is one of `stable`, `staging`, or `devel`
-      - Or, version is `3` and branch is `stable`
-    - There is only one WINE runtime snap, which is named `wine-platform-runtime`.
+      - WINE base is one of `stable`, `staging`, or `devel`
+    - There is WINE runtime snap, which is named `wine-platform-runtime-core24`.
 1. Add the following `apps`:
     ```yaml
     apps:
       my-windows-app:
-        extensions: [gnome-3-28]
+        extensions: [gnome]
         command: bin/sommelier run-exe
         environment:
           RUN_EXE: C:\path\to\installed\executable.exe
@@ -59,13 +56,13 @@ Pros:
         - network-bind
         - removable-media
       wine:
-        extensions: [gnome-3-28]
+        extensions: [gnome]
         command: bin/sommelier
         plugs:
           - home
           - network
       winetricks:
-        extensions: [gnome-3-28]
+        extensions: [gnome]
         command: bin/sommelier winetricks
         plugs:
           - home
