@@ -463,12 +463,6 @@ append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
 
-export WINE_RUNTIME="/snap/wine-platform-runtime-core24/current"
-if [[ -d "$WINE_RUNTIME" ]]; then
-  export PATH="$WINE_RUNTIME/bin:$WINE_RUNTIME/usr/bin:$PATH"
-  export LD_LIBRARY_PATH="$WINE_RUNTIME/usr/\$LIB:$LD_LIBRARY_PATH"
-fi
-
 # Don't stop Wine from updating $WINEPREFIX automatically.
 # PERF: Use $(<file) builtin redirection and grep -q to avoid subshell + arithmetic.
 if [[ -f "${WINEPREFIX}/.update-timestamp" ]] \
