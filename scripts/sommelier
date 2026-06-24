@@ -380,9 +380,6 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
   fi
 fi
 
-# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 1 of 2)
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH#$SNAP_LIBRARY_PATH:}"
-
 append_dir PATH "$WINE_PLATFORM/bin"
 
 export WINELOADER="$WINE_PLATFORM/bin/wine"
@@ -466,12 +463,6 @@ append_dir LD_LIBRARY_PATH "$SNAP/\$LIB"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/lib"
 append_dir LD_LIBRARY_PATH "$SNAP/usr/\$LIB"
 
-export WINE_RUNTIME="/snap/wine-platform-runtime-core24/current"
-if [[ -d "$WINE_RUNTIME" ]]; then
-  export PATH="$WINE_RUNTIME/bin:$WINE_RUNTIME/usr/bin:$PATH"
-  export LD_LIBRARY_PATH="$WINE_RUNTIME/usr/\$LIB:$LD_LIBRARY_PATH"
-fi
-
 # Don't stop Wine from updating $WINEPREFIX automatically.
 # PERF: Use $(<file) builtin redirection and grep -q to avoid subshell + arithmetic.
 if [[ -f "${WINEPREFIX}/.update-timestamp" ]] \
@@ -492,9 +483,6 @@ if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini" \
   init_wine
 fi
 
-
-# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 2 of 2)
-append_dir LD_LIBRARY_PATH "${SNAP_LIBRARY_PATH}"
 
 
 #####################################
