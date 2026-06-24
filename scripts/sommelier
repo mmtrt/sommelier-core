@@ -380,9 +380,6 @@ if [[ ! -d "$WINE_PLATFORM" ]]; then
   fi
 fi
 
-# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 1 of 2)
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH#$SNAP_LIBRARY_PATH:}"
-
 append_dir PATH "$WINE_PLATFORM/bin"
 
 export WINELOADER="$WINE_PLATFORM/bin/wine"
@@ -492,9 +489,6 @@ if [[ ! -f "${WINEPREFIX}/drive_c/windows/system.ini" \
   init_wine
 fi
 
-
-# Fix for nvidia drivers on Ubuntu 21.10 and other very modern systems (part 2 of 2)
-append_dir LD_LIBRARY_PATH "${SNAP_LIBRARY_PATH}"
 
 
 #####################################
